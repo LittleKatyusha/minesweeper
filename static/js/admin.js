@@ -1,5 +1,5 @@
 // Simple admin password (in production, use proper auth)
-const ADMIN_PASSWORD = 'minesweeper2024';
+const ADMIN_PASSWORD = 'kiru';
 
 // DOM Elements
 const loginSection = document.getElementById('login-section');
@@ -163,6 +163,7 @@ function renderKeysTable(keys) {
     tbody.innerHTML = keys.map(key => `
         <tr class="${key.is_active ? '' : 'revoked'}">
             <td><code>${escapeHtml(key.key_value)}</code></td>
+            <td>${getGameType(key.key_value)}</td>
             <td>${formatDate(key.created_at)}</td>
             <td>${escapeHtml(key.ip_address || 'N/A')}</td>
             <td>${key.is_active ? '✅ Active' : '❌ Revoked'}</td>
@@ -173,11 +174,20 @@ function renderKeysTable(keys) {
     `).join('');
 }
 
+function getGameType(keyValue) {
+    if (keyValue.startsWith('CHESS-')) {
+        return '♔ Chess';
+    } else if (keyValue.startsWith('MINE-')) {
+        return '💣 Minesweeper';
+    }
+    return '❓ Unknown';
+}
+
 function renderEmptyState(message) {
     const tbody = document.getElementById('keys-tbody');
     tbody.innerHTML = `
         <tr>
-            <td colspan="5" class="empty-state">
+            <td colspan="6" class="empty-state">
                 <span>📭</span>
                 ${escapeHtml(message)}
             </td>

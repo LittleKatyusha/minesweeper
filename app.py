@@ -105,6 +105,11 @@ def index():
     """Serve the main game page."""
     return send_from_directory('static', 'index.html')
 
+@app.route('/chess')
+def chess_page():
+    """Serve the chess game page."""
+    return send_from_directory('static', 'chess.html')
+
 @app.route('/admin')
 def admin_page():
     """Serve the admin panel page."""
@@ -292,6 +297,18 @@ def get_stats_endpoint():
     """Get key statistics (admin endpoint)."""
     stats = get_key_stats()
     return jsonify(stats)
+
+@app.route('/api/chess-win', methods=['POST'])
+def chess_win():
+    """Generate a key when player wins chess game."""
+    key = generate_key().replace('MINE-', 'CHESS-')
+    ip_address = request.remote_addr
+    create_key(key, 'chess-game', ip_address)
+    
+    return jsonify({
+        'success': True,
+        'key': key
+    })
 
 if __name__ == '__main__':
     # Initialize database on startup
