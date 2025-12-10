@@ -31,12 +31,12 @@ const PIECE_VALUES = {
     'k': 20000
 };
 
-// AI Configuration - STOCKFISH POWERED
+// AI Configuration - STOCKFISH POWERED (MAXIMUM DIFFICULTY)
 const AI_DEPTH = 6; // Fallback depth if Stockfish unavailable
 const QUIESCENCE_DEPTH = 4;
 const AI_TIME_LIMIT = 1500; // Max 1.5 seconds per move
-const STOCKFISH_DEPTH = 15; // Stockfish search depth
-const STOCKFISH_TIME = 1000; // Stockfish time limit in ms
+const STOCKFISH_DEPTH = 20; // Stockfish search depth (MAXIMUM)
+const STOCKFISH_TIME = 2000; // Stockfish time limit in ms
 const USE_STOCKFISH = true; // Enable Stockfish engine
 const USE_ITERATIVE_DEEPENING = true;
 const USE_TRANSPOSITION_TABLE = true;
@@ -59,78 +59,44 @@ let searchAborted = false;
 
 // Initialize Stockfish
 function initStockfish() {
-    if (!USE_STOCKFISH) {
-        console.log('🔧 Stockfish disabled in configuration');
-        return;
-    }
-    
-    console.log('🔄 Initializing Stockfish engine...');
+    if (!USE_STOCKFISH) return;
     
     try {
-        // Load Stockfish from local file
         stockfish = new Worker('/static/js/stockfish.js');
-        console.log('✅ Stockfish Worker created successfully');
         
         stockfish.onmessage = function(event) {
             const message = event.data;
-            console.log('📨 Stockfish:', message);
             
             if (message === 'uciok') {
-                console.log('✅ Stockfish UCI protocol initialized');
                 stockfish.postMessage('isready');
             } else if (message === 'readyok') {
                 stockfishReady = true;
-                console.log('🎉 Stockfish engine ready! AI is now at GRANDMASTER level!');
             } else if (message.startsWith('bestmove')) {
                 const parts = message.split(' ');
                 const bestMove = parts[1];
-                console.log('🎯 Stockfish best move:', bestMove);
                 if (stockfishResolve && bestMove && bestMove !== '(none)') {
                     stockfishResolve(bestMove);
                     stockfishResolve = null;
-                }
-            } else if (message.startsWith('info')) {
-                // Log search info (depth, score, etc.)
-                if (message.includes('depth') && message.includes('score')) {
-                    const depthMatch = message.match(/depth (\d+)/);
-                    const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
-                    if (depthMatch && scoreMatch) {
-                        const depth = depthMatch[1];
-                        const scoreType = scoreMatch[1];
-                        const scoreValue = scoreMatch[2];
-                        if (scoreType === 'mate') {
-                            console.log(`📊 Depth ${depth}: Mate in ${scoreValue}`);
-                        } else {
-                            console.log(`📊 Depth ${depth}: Score ${(parseInt(scoreValue) / 100).toFixed(2)}`);
-                        }
-                    }
                 }
             }
         };
         
         stockfish.onerror = function(error) {
-            console.error('❌ Stockfish Worker error:', error);
-            console.log('⚠️ Falling back to built-in AI engine');
             stockfishReady = false;
         };
         
-        // Initialize UCI protocol
-        console.log('🔄 Sending UCI initialization...');
         stockfish.postMessage('uci');
         
-        // Set options for stronger play
+        // Configure for MAXIMUM strength
         setTimeout(() => {
             if (stockfish && stockfishReady) {
-                console.log('⚙️ Configuring Stockfish for maximum strength...');
                 stockfish.postMessage('setoption name Skill Level value 20');
-                stockfish.postMessage('setoption name Contempt value 50');
-                console.log('✅ Stockfish configured: Skill Level 20, Contempt 50');
+                stockfish.postMessage('setoption name Contempt value 100');
+                stockfish.postMessage('setoption name Aggressiveness value 200');
             }
-        }, 1000);
+        }, 500);
         
     } catch (error) {
-        console.error('❌ Failed to initialize Stockfish:', error);
-        console.log('⚠️ Falling back to built-in AI engine');
         stockfishReady = false;
     }
 }
@@ -224,11 +190,8 @@ function parseStockfishMove(moveStr, boardState) {
 // Get best move from Stockfish
 async function getStockfishMove(boardState) {
     if (!stockfishReady || !stockfish) {
-        console.log('⚠️ Stockfish not ready, using fallback AI');
         return null;
     }
-    
-    console.log('🤔 Stockfish is analyzing position...');
     
     return new Promise((resolve) => {
         stockfishResolve = (moveStr) => {
@@ -236,17 +199,14 @@ async function getStockfishMove(boardState) {
             resolve(move);
         };
         
-        // Set timeout in case Stockfish doesn't respond
         setTimeout(() => {
             if (stockfishResolve) {
-                console.log('⏱️ Stockfish timeout, using fallback');
                 stockfishResolve = null;
                 resolve(null);
             }
         }, STOCKFISH_TIME + 500);
         
         const fen = boardToFEN(boardState);
-        console.log('📋 Position FEN:', fen);
         stockfish.postMessage('position fen ' + fen);
         stockfish.postMessage('go depth ' + STOCKFISH_DEPTH + ' movetime ' + STOCKFISH_TIME);
     });
@@ -1126,7 +1086,7 @@ async function makeAIMove() {
     if (gameOver || currentTurn !== 'black') return;
     
     boardElement.classList.add('ai-thinking');
-    updateStatus('Stockfish is thinking...', '');
+    updateStatus('AI is thinking...', '');
     
     nodesSearched = 0;
     searchStartTime = Date.now();
@@ -1134,15 +1094,12 @@ async function makeAIMove() {
     
     let bestMove = null;
     
-    // Try Stockfish first
+    // Try Stockfish first (MAXIMUM DIFFICULTY)
     if (USE_STOCKFISH && stockfishReady) {
         try {
             bestMove = await getStockfishMove(board);
-            if (bestMove) {
-                console.log(`Stockfish found move in ${Date.now() - searchStartTime}ms`);
-            }
         } catch (error) {
-            console.error('Stockfish error:', error);
+            // Silent fallback
         }
     }
     
@@ -1153,8 +1110,6 @@ async function makeAIMove() {
     
     // Fallback to built-in AI
     if (!bestMove) {
-        updateStatus('AI is calculating...', '');
-        
         if (transpositionTable.size > 500000) {
             transpositionTable.clear();
         }
@@ -1166,8 +1121,6 @@ async function makeAIMove() {
         } else {
             bestMove = findBestMove(board, AI_DEPTH);
         }
-        
-        console.log(`Built-in AI searched ${nodesSearched} nodes in ${Date.now() - searchStartTime}ms`);
     }
     
     boardElement.classList.remove('ai-thinking');
