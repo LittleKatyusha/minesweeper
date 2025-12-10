@@ -1,29 +1,41 @@
 /* Minesweeper Key System - Stylesheet */
-/* This file will contain the game styling */
+/* Mobile-friendly responsive design */
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     min-height: 100vh;
+    min-height: -webkit-fill-available;
     display: flex;
     justify-content: center;
     align-items: center;
     color: #fff;
     user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow-x: hidden;
+    padding: 10px;
+}
+
+html {
+    height: -webkit-fill-available;
 }
 
 #game-container {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 20px;
-    padding: 30px;
+    padding: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 /* Header Section */
@@ -86,20 +98,29 @@ body {
 }
 
 /* Game Board */
+#board-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    padding-bottom: 10px;
+}
+
 #board {
     display: grid;
-    grid-template-columns: repeat(25, 22px);
-    grid-template-rows: repeat(25, 22px);
+    grid-template-columns: repeat(25, var(--cell-size, 22px));
+    grid-template-rows: repeat(25, var(--cell-size, 22px));
     gap: 1px;
     background: #333;
-    padding: 10px;
+    padding: 8px;
     border-radius: 10px;
     margin: 0 auto;
+    width: fit-content;
 }
 
 .cell {
-    width: 22px;
-    height: 22px;
+    width: var(--cell-size, 22px);
+    height: var(--cell-size, 22px);
     background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
     border: 1px solid #555;
     border-radius: 3px;
@@ -107,13 +128,24 @@ body {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    font-size: 11px;
+    font-size: var(--cell-font, 11px);
     font-weight: bold;
     transition: all 0.1s;
+    touch-action: manipulation;
 }
 
 .cell:hover {
     background: linear-gradient(145deg, #5a5a5a, #4a4a4a);
+}
+
+.cell:active {
+    background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+    transform: scale(0.95);
+}
+
+.cell.pressing {
+    background: linear-gradient(145deg, #ff9800, #f57c00);
+    transform: scale(0.9);
 }
 
 .cell.revealed {
@@ -220,25 +252,209 @@ body {
     text-decoration: underline;
 }
 
-/* Responsive */
-@media (max-width: 600px) {
-    #board {
-        grid-template-columns: repeat(25, 16px);
-        grid-template-rows: repeat(25, 16px);
+/* Mobile Instructions */
+#mobile-instructions {
+    display: none;
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 152, 0, 0.2);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 0.85rem;
+    color: #ffb74d;
+}
+
+#mobile-instructions span {
+    display: block;
+    margin: 3px 0;
+}
+
+/* Zoom Controls for Mobile */
+#zoom-controls {
+    display: none;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.zoom-btn {
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.zoom-btn:active {
+    background: #444;
+}
+
+#zoom-level {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    color: #aaa;
+}
+
+/* Responsive - Tablet */
+@media (max-width: 768px) {
+    :root {
+        --cell-size: 20px;
+        --cell-font: 10px;
     }
     
-    .cell {
-        width: 16px;
-        height: 16px;
-        font-size: 9px;
+    #game-container {
+        padding: 15px;
+        border-radius: 15px;
     }
     
     #header h1 {
-        font-size: 1.8rem;
+        font-size: 2rem;
+    }
+    
+    #header p {
+        font-size: 0.9rem;
+    }
+    
+    #info-bar {
+        padding: 12px 15px;
+    }
+    
+    #mines-count, #timer {
+        font-size: 1rem;
+    }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 600px) {
+    :root {
+        --cell-size: 18px;
+        --cell-font: 9px;
+    }
+    
+    body {
+        padding: 5px;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+    
+    #game-container {
+        padding: 12px;
+        border-radius: 12px;
+        width: 100%;
+    }
+    
+    #header h1 {
+        font-size: 1.6rem;
+    }
+    
+    #header p {
+        font-size: 0.8rem;
     }
     
     #info-bar {
         flex-direction: column;
+        gap: 8px;
+        padding: 10px;
+    }
+    
+    #mines-count, #timer {
+        font-size: 0.95rem;
+    }
+    
+    #new-game-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+    
+    #mobile-instructions {
+        display: block;
+    }
+    
+    #zoom-controls {
+        display: flex;
+    }
+    
+    #board {
+        padding: 5px;
+    }
+    
+    #key-display {
+        padding: 15px;
+    }
+    
+    #key-value {
+        font-size: 0.85rem;
+        padding: 10px 15px;
+        letter-spacing: 1px;
+        word-break: break-all;
+    }
+    
+    #key-box {
+        flex-direction: column;
         gap: 10px;
+    }
+    
+    #copy-btn {
+        padding: 12px 20px;
+        width: 100%;
+    }
+}
+
+/* Responsive - Small Mobile */
+@media (max-width: 400px) {
+    :root {
+        --cell-size: 15px;
+        --cell-font: 8px;
+    }
+    
+    #header h1 {
+        font-size: 1.4rem;
+    }
+    
+    #board {
+        padding: 3px;
+    }
+}
+
+/* Landscape Mode on Mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+    body {
+        align-items: flex-start;
+        padding: 10px;
+    }
+    
+    #game-container {
+        padding: 10px;
+    }
+    
+    #header {
+        margin-bottom: 10px;
+    }
+    
+    #header h1 {
+        font-size: 1.3rem;
+    }
+    
+    #header p {
+        display: none;
+    }
+    
+    #info-bar {
+        flex-direction: row;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+    }
+    
+    #mobile-instructions {
+        display: none;
+    }
+    
+    :root {
+        --cell-size: 16px;
+        --cell-font: 8px;
     }
 }

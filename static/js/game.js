@@ -2,6 +2,7 @@
 const BOARD_SIZE = 25;
 const TOTAL_MINES = 120;
 const TIME_LIMIT = 360; // 6 minutes in seconds
+const LONG_PRESS_DURATION = 500; // ms for long press to flag
 
 // Game State Variables
 let sessionId = null;
@@ -11,6 +12,16 @@ let timeRemaining = TIME_LIMIT;
 let flagCount = 0;
 let revealedCount = 0;
 let board = []; // 2D array to track cell states
+
+// Touch/Mobile State
+let touchStartTime = 0;
+let touchTimer = null;
+let currentTouchCell = null;
+let isMobile = false;
+let currentZoom = 100;
+const ZOOM_STEP = 10;
+const MIN_ZOOM = 60;
+const MAX_ZOOM = 120;
 
 // DOM Elements
 const boardElement = document.getElementById('board');
@@ -24,9 +35,71 @@ const copyBtn = document.getElementById('copy-btn');
 const proxyLink = document.getElementById('proxy-link');
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', initGame);
+document.addEventListener('DOMContentLoaded', () => {
+    // Detect mobile device
+    isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // Initialize zoom controls
+    initZoomControls();
+    
+    // Start game
+    initGame();
+});
+
 newGameBtn.addEventListener('click', initGame);
 copyBtn.addEventListener('click', copyKey);
+
+/**
+ * Initialize zoom controls for mobile
+ */
+function initZoomControls() {
+    const zoomIn = document.getElementById('zoom-in');
+    const zoomOut = document.getElementById('zoom-out');
+    const zoomLevel = document.getElementById('zoom-level');
+    
+    if (zoomIn && zoomOut) {
+        zoomIn.addEventListener('click', () => {
+            if (currentZoom < MAX_ZOOM) {
+                currentZoom += ZOOM_STEP;
+                applyZoom();
+            }
+        });
+        
+        zoomOut.addEventListener('click', () => {
+            if (currentZoom > MIN_ZOOM) {
+                currentZoom -= ZOOM_STEP;
+                applyZoom();
+            }
+        });
+    }
+    
+    // Set initial zoom based on screen width
+    if (window.innerWidth <= 400) {
+        currentZoom = 70;
+    } else if (window.innerWidth <= 600) {
+        currentZoom = 85;
+    }
+    applyZoom();
+}
+
+/**
+ * Apply zoom level to the board
+ */
+function applyZoom() {
+    const zoomLevel = document.getElementById('zoom-level');
+    const baseSize = 22;
+    const baseFontSize = 11;
+    
+    const cellSize = Math.round(baseSize * (currentZoom / 100));
+    const fontSize = Math.round(baseFontSize * (currentZoom / 100));
+    
+    document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
+    document.documentElement.style.setProperty('--cell-font', `${fontSize}px`);
+    
+    if (zoomLevel) {
+        zoomLevel.textContent = `${currentZoom}%`;
+    }
+}
 
 /**
  * Initialize a new game
@@ -98,20 +171,108 @@ function createBoard() {
             cell.dataset.x = x;
             cell.dataset.y = y;
             
-            // Left click to reveal
+            // Left click to reveal (desktop)
             cell.addEventListener('click', (e) => {
                 e.preventDefault();
-                handleCellClick(x, y);
+                // Only handle if not from touch
+                if (!isMobile) {
+                    handleCellClick(x, y);
+                }
             });
             
-            // Right click to flag
+            // Right click to flag (desktop)
             cell.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 handleRightClick(x, y);
             });
             
+            // Touch events for mobile
+            cell.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleTouchStart(x, y, cell);
+            }, { passive: false });
+            
+            cell.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handleTouchEnd(x, y);
+            }, { passive: false });
+            
+            cell.addEventListener('touchmove', (e) => {
+                // Cancel long press if finger moves
+                handleTouchCancel();
+            }, { passive: true });
+            
+            cell.addEventListener('touchcancel', (e) => {
+                handleTouchCancel();
+            });
+            
             boardElement.appendChild(cell);
         }
+    }
+}
+
+/**
+ * Handle touch start (for mobile long press detection)
+ */
+function handleTouchStart(x, y, cell) {
+    touchStartTime = Date.now();
+    currentTouchCell = cell;
+    
+    // Start long press timer
+    touchTimer = setTimeout(() => {
+        // Long press detected - flag the cell
+        cell.classList.add('pressing');
+        
+        // Vibrate if supported
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+        
+        handleRightClick(x, y);
+        currentTouchCell = null;
+    }, LONG_PRESS_DURATION);
+    
+    // Visual feedback
+    cell.classList.add('pressing');
+}
+
+/**
+ * Handle touch end
+ */
+function handleTouchEnd(x, y) {
+    const touchDuration = Date.now() - touchStartTime;
+    
+    // Clear long press timer
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+    }
+    
+    // Remove visual feedback
+    if (currentTouchCell) {
+        currentTouchCell.classList.remove('pressing');
+    }
+    
+    // If it was a short tap (not a long press), reveal the cell
+    if (touchDuration < LONG_PRESS_DURATION && currentTouchCell) {
+        handleCellClick(x, y);
+    }
+    
+    currentTouchCell = null;
+}
+
+/**
+ * Handle touch cancel (finger moved or interrupted)
+ */
+function handleTouchCancel() {
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+    }
+    
+    if (currentTouchCell) {
+        currentTouchCell.classList.remove('pressing');
+        currentTouchCell = null;
     }
 }
 

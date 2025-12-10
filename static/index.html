@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1a2e">
     <title>Minesweeper - Get Your Proxy Key</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -49,9 +52,24 @@
             <button id="new-game-btn">🔄 New Game</button>
         </div>
         
+        <!-- Mobile Instructions -->
+        <div id="mobile-instructions">
+            <span>👆 Tap = Reveal cell</span>
+            <span>👆 Long press = Flag/Unflag</span>
+        </div>
+        
+        <!-- Zoom Controls for Mobile -->
+        <div id="zoom-controls">
+            <button class="zoom-btn" id="zoom-out">➖</button>
+            <span id="zoom-level">100%</span>
+            <button class="zoom-btn" id="zoom-in">➕</button>
+        </div>
+        
         <!-- Game Board - 25x25 grid -->
-        <div id="board">
-            <!-- 625 cells akan di-generate oleh JavaScript -->
+        <div id="board-wrapper">
+            <div id="board">
+                <!-- 625 cells akan di-generate oleh JavaScript -->
+            </div>
         </div>
         
         <!-- Status/Message Area -->
