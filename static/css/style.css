@@ -99,28 +99,33 @@ html {
 
 /* Game Board */
 #board-wrapper {
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
     max-width: 100%;
-    padding-bottom: 10px;
+    max-height: 70vh;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    touch-action: pan-x pan-y pinch-zoom;
 }
 
 #board {
     display: grid;
-    grid-template-columns: repeat(25, var(--cell-size, 22px));
-    grid-template-rows: repeat(25, var(--cell-size, 22px));
+    grid-template-columns: repeat(25, 22px);
+    grid-template-rows: repeat(25, 22px);
     gap: 1px;
     background: #333;
     padding: 8px;
     border-radius: 10px;
     margin: 0 auto;
     width: fit-content;
+    transform-origin: top left;
+    transition: transform 0.1s ease-out;
 }
 
 .cell {
-    width: var(--cell-size, 22px);
-    height: var(--cell-size, 22px);
+    width: 22px;
+    height: 22px;
     background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
     border: 1px solid #555;
     border-radius: 3px;
@@ -128,9 +133,9 @@ html {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    font-size: var(--cell-font, 11px);
+    font-size: 11px;
     font-weight: bold;
-    transition: all 0.1s;
+    transition: background 0.1s, transform 0.1s;
     touch-action: manipulation;
 }
 
@@ -252,60 +257,148 @@ html {
     text-decoration: underline;
 }
 
+/* Navigation Controls for Mobile */
+#nav-controls {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+}
+
+.nav-row {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.nav-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #444, #333);
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.1s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.nav-btn:active {
+    background: linear-gradient(145deg, #333, #222);
+    transform: scale(0.95);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.nav-btn.nav-center {
+    background: linear-gradient(145deg, #2196F3, #1976D2);
+    font-size: 1rem;
+}
+
+.nav-btn.nav-center:active {
+    background: linear-gradient(145deg, #1976D2, #1565C0);
+}
+
 /* Mobile Instructions */
 #mobile-instructions {
     display: none;
     text-align: center;
-    padding: 10px;
+    padding: 12px 15px;
     background: rgba(255, 152, 0, 0.2);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-radius: 10px;
     margin-bottom: 15px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #ffb74d;
 }
 
 #mobile-instructions span {
-    display: block;
-    margin: 3px 0;
+    display: inline-block;
+    margin: 3px 8px;
+}
+
+#mobile-instructions .instruction-icon {
+    font-size: 1.1rem;
+}
+
+/* Scroll Hint */
+#scroll-hint {
+    display: none;
+    text-align: center;
+    padding: 8px;
+    color: #888;
+    font-size: 0.8rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
 }
 
 /* Zoom Controls for Mobile */
 #zoom-controls {
     display: none;
     justify-content: center;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 15px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
 }
 
 .zoom-btn {
-    background: #333;
+    background: #444;
     color: #fff;
-    border: 1px solid #555;
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-size: 1.2rem;
+    border: 1px solid #666;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 1.3rem;
     cursor: pointer;
     touch-action: manipulation;
+    transition: background 0.2s;
 }
 
 .zoom-btn:active {
-    background: #444;
+    background: #555;
+    transform: scale(0.95);
 }
 
 #zoom-level {
     display: flex;
     align-items: center;
-    padding: 0 10px;
-    color: #aaa;
+    padding: 8px 15px;
+    color: #fff;
+    background: #333;
+    border-radius: 5px;
+    font-weight: bold;
+    min-width: 60px;
+    justify-content: center;
+}
+
+/* Reset Zoom Button */
+#zoom-reset {
+    background: #2196F3;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-left: 5px;
 }
 
 /* Responsive - Tablet */
 @media (max-width: 768px) {
-    :root {
-        --cell-size: 20px;
-        --cell-font: 10px;
-    }
-    
     #game-container {
         padding: 15px;
         border-radius: 15px;
@@ -326,70 +419,91 @@ html {
     #mines-count, #timer {
         font-size: 1rem;
     }
+    
+    #board-wrapper {
+        max-height: 60vh;
+    }
 }
 
 /* Responsive - Mobile */
 @media (max-width: 600px) {
-    :root {
-        --cell-size: 18px;
-        --cell-font: 9px;
-    }
-    
     body {
         padding: 5px;
         align-items: flex-start;
-        padding-top: 20px;
+        padding-top: 10px;
     }
     
     #game-container {
-        padding: 12px;
+        padding: 10px;
         border-radius: 12px;
         width: 100%;
     }
     
     #header h1 {
-        font-size: 1.6rem;
+        font-size: 1.5rem;
     }
     
     #header p {
         font-size: 0.8rem;
     }
     
+    #header {
+        margin-bottom: 10px;
+    }
+    
     #info-bar {
-        flex-direction: column;
-        gap: 8px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
         padding: 10px;
+        margin-bottom: 10px;
     }
     
     #mines-count, #timer {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
     }
     
     #new-game-btn {
         padding: 8px 16px;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     
     #mobile-instructions {
         display: block;
+        margin-bottom: 10px;
+    }
+    
+    #nav-controls {
+        display: flex;
     }
     
     #zoom-controls {
         display: flex;
     }
     
+    #board-wrapper {
+        max-height: 55vh;
+        border-radius: 10px;
+    }
+    
     #board {
         padding: 5px;
     }
     
+    #message-area {
+        margin-top: 10px;
+    }
+    
     #key-display {
         padding: 15px;
+        margin-top: 10px;
     }
     
     #key-value {
-        font-size: 0.85rem;
-        padding: 10px 15px;
-        letter-spacing: 1px;
+        font-size: 0.75rem;
+        padding: 10px 12px;
+        letter-spacing: 0.5px;
         word-break: break-all;
     }
     
@@ -402,21 +516,38 @@ html {
         padding: 12px 20px;
         width: 100%;
     }
+    
+    #status-message {
+        font-size: 1rem;
+    }
 }
 
 /* Responsive - Small Mobile */
 @media (max-width: 400px) {
-    :root {
-        --cell-size: 15px;
-        --cell-font: 8px;
+    #header h1 {
+        font-size: 1.3rem;
     }
     
-    #header h1 {
-        font-size: 1.4rem;
+    #header p {
+        font-size: 0.75rem;
+    }
+    
+    #info-bar {
+        gap: 8px;
+        padding: 8px;
     }
     
     #board {
         padding: 3px;
+    }
+    
+    #board-wrapper {
+        max-height: 50vh;
+    }
+    
+    .zoom-btn {
+        padding: 8px 14px;
+        font-size: 1.1rem;
     }
 }
 
@@ -424,19 +555,19 @@ html {
 @media (max-height: 500px) and (orientation: landscape) {
     body {
         align-items: flex-start;
-        padding: 10px;
+        padding: 5px;
     }
     
     #game-container {
-        padding: 10px;
+        padding: 8px;
     }
     
     #header {
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
     
     #header h1 {
-        font-size: 1.3rem;
+        font-size: 1.2rem;
     }
     
     #header p {
@@ -445,16 +576,35 @@ html {
     
     #info-bar {
         flex-direction: row;
-        padding: 8px 12px;
-        margin-bottom: 10px;
+        padding: 6px 10px;
+        margin-bottom: 5px;
     }
     
     #mobile-instructions {
         display: none;
     }
     
-    :root {
-        --cell-size: 16px;
-        --cell-font: 8px;
+    #scroll-hint {
+        display: none;
+    }
+    
+    #zoom-controls {
+        margin-bottom: 5px;
+        padding: 5px;
+    }
+    
+    #board-wrapper {
+        max-height: 70vh;
+    }
+}
+
+/* Touch feedback for cells */
+@media (hover: none) and (pointer: coarse) {
+    .cell:hover {
+        background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+    }
+    
+    .cell:active {
+        background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
     }
 }

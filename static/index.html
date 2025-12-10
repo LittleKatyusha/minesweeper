@@ -48,14 +48,15 @@
         <!-- Game Info Bar -->
         <div id="info-bar">
             <div id="mines-count">💣 <span id="mines-remaining">120</span></div>
-            <div id="timer">⏱️ <span id="time">06:00</span></div>
+            <div id="timer">⏱️ <span id="time">10:00</span></div>
             <button id="new-game-btn">🔄 New Game</button>
         </div>
         
         <!-- Mobile Instructions -->
         <div id="mobile-instructions">
-            <span>👆 Tap = Reveal cell</span>
-            <span>👆 Long press = Flag/Unflag</span>
+            <span><span class="instruction-icon">👆</span> Tap = Reveal</span>
+            <span><span class="instruction-icon">👆💨</span> Hold = Flag</span>
+            <span><span class="instruction-icon">↔️</span> Scroll to navigate</span>
         </div>
         
         <!-- Zoom Controls for Mobile -->
@@ -63,9 +64,25 @@
             <button class="zoom-btn" id="zoom-out">➖</button>
             <span id="zoom-level">100%</span>
             <button class="zoom-btn" id="zoom-in">➕</button>
+            <button id="zoom-reset">Reset</button>
         </div>
         
-        <!-- Game Board - 25x25 grid -->
+        <!-- Navigation Controls for Mobile -->
+        <div id="nav-controls">
+            <div class="nav-row">
+                <button class="nav-btn" id="nav-up">⬆️</button>
+            </div>
+            <div class="nav-row">
+                <button class="nav-btn" id="nav-left">⬅️</button>
+                <button class="nav-btn nav-center" id="nav-center">⏺️</button>
+                <button class="nav-btn" id="nav-right">➡️</button>
+            </div>
+            <div class="nav-row">
+                <button class="nav-btn" id="nav-down">⬇️</button>
+            </div>
+        </div>
+        
+        <!-- Game Board - 25x25 grid (same size on all devices) -->
         <div id="board-wrapper">
             <div id="board">
                 <!-- 625 cells akan di-generate oleh JavaScript -->

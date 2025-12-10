@@ -1,7 +1,7 @@
 // Game Constants
 const BOARD_SIZE = 25;
 const TOTAL_MINES = 120;
-const TIME_LIMIT = 360; // 6 minutes in seconds
+const TIME_LIMIT = 600; // 10 minutes in seconds
 const LONG_PRESS_DURATION = 500; // ms for long press to flag
 
 // Game State Variables
@@ -55,7 +55,8 @@ copyBtn.addEventListener('click', copyKey);
 function initZoomControls() {
     const zoomIn = document.getElementById('zoom-in');
     const zoomOut = document.getElementById('zoom-out');
-    const zoomLevel = document.getElementById('zoom-level');
+    const zoomReset = document.getElementById('zoom-reset');
+    const zoomLevelEl = document.getElementById('zoom-level');
     
     if (zoomIn && zoomOut) {
         zoomIn.addEventListener('click', () => {
@@ -73,31 +74,98 @@ function initZoomControls() {
         });
     }
     
-    // Set initial zoom based on screen width
+    if (zoomReset) {
+        zoomReset.addEventListener('click', () => {
+            currentZoom = 100;
+            applyZoom();
+            // Scroll board to center
+            const boardWrapper = document.getElementById('board-wrapper');
+            if (boardWrapper) {
+                boardWrapper.scrollLeft = 0;
+                boardWrapper.scrollTop = 0;
+            }
+        });
+    }
+    
+    // Set initial zoom based on screen width (keep board same size, just adjust initial view)
     if (window.innerWidth <= 400) {
-        currentZoom = 70;
+        currentZoom = 80;
     } else if (window.innerWidth <= 600) {
-        currentZoom = 85;
+        currentZoom = 90;
     }
     applyZoom();
+    
+    // Initialize navigation controls
+    initNavControls();
 }
 
 /**
- * Apply zoom level to the board
+ * Initialize navigation controls (D-pad) for mobile
+ */
+function initNavControls() {
+    const boardWrapper = document.getElementById('board-wrapper');
+    const navUp = document.getElementById('nav-up');
+    const navDown = document.getElementById('nav-down');
+    const navLeft = document.getElementById('nav-left');
+    const navRight = document.getElementById('nav-right');
+    const navCenter = document.getElementById('nav-center');
+    
+    const SCROLL_AMOUNT = 100; // pixels to scroll per click
+    
+    if (!boardWrapper) return;
+    
+    if (navUp) {
+        navUp.addEventListener('click', () => {
+            boardWrapper.scrollBy({ top: -SCROLL_AMOUNT, behavior: 'smooth' });
+        });
+    }
+    
+    if (navDown) {
+        navDown.addEventListener('click', () => {
+            boardWrapper.scrollBy({ top: SCROLL_AMOUNT, behavior: 'smooth' });
+        });
+    }
+    
+    if (navLeft) {
+        navLeft.addEventListener('click', () => {
+            boardWrapper.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' });
+        });
+    }
+    
+    if (navRight) {
+        navRight.addEventListener('click', () => {
+            boardWrapper.scrollBy({ left: SCROLL_AMOUNT, behavior: 'smooth' });
+        });
+    }
+    
+    if (navCenter) {
+        navCenter.addEventListener('click', () => {
+            // Scroll to center of board
+            const boardEl = document.getElementById('board');
+            if (boardEl) {
+                const centerX = (boardEl.scrollWidth - boardWrapper.clientWidth) / 2;
+                const centerY = (boardEl.scrollHeight - boardWrapper.clientHeight) / 2;
+                boardWrapper.scrollTo({ left: centerX, top: centerY, behavior: 'smooth' });
+            }
+        });
+    }
+}
+
+/**
+ * Apply zoom level to the board using CSS transform
  */
 function applyZoom() {
-    const zoomLevel = document.getElementById('zoom-level');
-    const baseSize = 22;
-    const baseFontSize = 11;
+    const zoomLevelEl = document.getElementById('zoom-level');
+    const boardEl = document.getElementById('board');
     
-    const cellSize = Math.round(baseSize * (currentZoom / 100));
-    const fontSize = Math.round(baseFontSize * (currentZoom / 100));
+    if (boardEl) {
+        const scale = currentZoom / 100;
+        boardEl.style.transform = `scale(${scale})`;
+        boardEl.style.transformOrigin = 'top left';
+    }
     
-    document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
-    document.documentElement.style.setProperty('--cell-font', `${fontSize}px`);
-    
-    if (zoomLevel) {
-        zoomLevel.textContent = `${currentZoom}%`;
+    if (zoomLevelEl) {
+        zoomLevelEl.textContent = `${currentZoom}%`;
     }
 }
 
