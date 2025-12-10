@@ -31,12 +31,14 @@ const PIECE_VALUES = {
     'k': 20000
 };
 
-// AI Configuration - MAXIMUM DIFFICULTY
-const AI_DEPTH = 5;
-const QUIESCENCE_DEPTH = 4;
+// AI Configuration - EXTREME DIFFICULTY
+const AI_DEPTH = 7;
+const QUIESCENCE_DEPTH = 6;
 const USE_ITERATIVE_DEEPENING = true;
 const USE_TRANSPOSITION_TABLE = true;
 const USE_KILLER_MOVES = true;
+const USE_NULL_MOVE_PRUNING = true;
+const USE_ASPIRATION_WINDOWS = true;
 
 // Transposition table and search helpers
 let transpositionTable = new Map();
@@ -849,11 +851,58 @@ function makeAIMove() {
 
 function iterativeDeepening(boardState, maxDepth) {
     let bestMove = null;
+    let previousScore = 0;
     
     for (let depth = 1; depth <= maxDepth; depth++) {
-        const move = findBestMove(boardState, depth);
-        if (move) bestMove = move;
-        if (Date.now() - searchStartTime > 8000) break;
+        let move;
+        
+        if (USE_ASPIRATION_WINDOWS && depth > 3 && bestMove) {
+            // Use aspiration windows for faster search
+            const delta = 50;
+            let alpha = previousScore - delta;
+            let beta = previousScore + delta;
+            
+            move = findBestMoveWithWindow(boardState, depth, alpha, beta);
+            
+            // If search failed, do a full window search
+            if (!move || move.score <= alpha || move.score >= beta) {
+                move = findBestMove(boardState, depth);
+            }
+        } else {
+            move = findBestMove(boardState, depth);
+        }
+        
+        if (move) {
+            bestMove = move;
+            previousScore = move.score || 0;
+        }
+        
+        // Reduced time limit for faster response
+        if (Date.now() - searchStartTime > 3000) break;
+    }
+    
+    return bestMove;
+}
+
+function findBestMoveWithWindow(boardState, depth, alpha, beta) {
+    let bestMove = null;
+    let bestValue = Infinity;
+    
+    const moves = getAllMoves('black', boardState);
+    orderMoves(moves, boardState, 0);
+    
+    for (const move of moves) {
+        const newBoard = simulateMove(boardState, move.fromRow, move.fromCol, move.toRow, move.toCol, move.moveInfo);
+        const value = minimax(newBoard, depth - 1, alpha, beta, true, 1);
+        
+        if (value < bestValue) {
+            bestValue = value;
+            bestMove = move;
+            bestMove.score = value;
+        }
+        
+        if (value < beta) beta = value;
+        if (alpha >= beta) break;
     }
     
     return bestMove;
@@ -873,6 +922,7 @@ function findBestMove(boardState, depth) {
         if (value < bestValue) {
             bestValue = value;
             bestMove = move;
+            bestMove.score = value;
         }
     }
     
@@ -905,6 +955,15 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
         return quiescenceSearch(boardState, alpha, beta, isMaximizing, QUIESCENCE_DEPTH);
     }
     
+    // Null move pruning - skip a turn to see if position is still good
+    if (USE_NULL_MOVE_PRUNING && depth >= 3 && !isInCheck(color, boardState)) {
+        const nullMoveReduction = 2 + Math.floor(depth / 4);
+        const nullScore = minimax(boardState, depth - 1 - nullMoveReduction, alpha, beta, !isMaximizing, ply + 1);
+        
+        if (isMaximizing && nullScore >= beta) return beta;
+        if (!isMaximizing && nullScore <= alpha) return alpha;
+    }
+    
     const moves = getAllMoves(color, boardState);
     orderMoves(moves, boardState, ply);
     
@@ -916,8 +975,13 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
         const newBoard = simulateMove(boardState, move.fromRow, move.fromCol, move.toRow, move.toCol, move.moveInfo);
         
         let evalScore;
-        if (i >= 4 && depth >= 3 && !boardState[move.toRow][move.toCol]) {
-            evalScore = minimax(newBoard, depth - 2, alpha, beta, !isMaximizing, ply + 1);
+        
+        // Late move reduction - search later moves with reduced depth
+        if (i >= 4 && depth >= 3 && !boardState[move.toRow][move.toCol] && !isInCheck(color, newBoard)) {
+            const reduction = i >= 8 ? 2 : 1;
+            evalScore = minimax(newBoard, depth - 1 - reduction, alpha, beta, !isMaximizing, ply + 1);
+            
+            // Re-search with full depth if move looks promising
             if ((isMaximizing && evalScore > alpha) || (!isMaximizing && evalScore < beta)) {
                 evalScore = minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, ply + 1);
             }
@@ -1071,6 +1135,8 @@ function evaluateBoard(boardState) {
     let score = 0;
     let whiteMaterial = 0;
     let blackMaterial = 0;
+    let whitePawns = [];
+    let blackPawns = [];
     
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
@@ -1078,8 +1144,13 @@ function evaluateBoard(boardState) {
             if (!piece) continue;
             
             const value = PIECE_VALUES[piece.toLowerCase()];
-            if (isWhitePiece(piece)) whiteMaterial += value;
-            else blackMaterial += value;
+            if (isWhitePiece(piece)) {
+                whiteMaterial += value;
+                if (piece === 'P') whitePawns.push({ row, col });
+            } else {
+                blackMaterial += value;
+                if (piece === 'p') blackPawns.push({ row, col });
+            }
         }
     }
     
@@ -1103,6 +1174,114 @@ function evaluateBoard(boardState) {
     const whiteMoves = getAllMoves('white', boardState).length;
     const blackMoves = getAllMoves('black', boardState).length;
     score += (whiteMoves - blackMoves) * 5;
+    
+    // Pawn structure evaluation
+    score += evaluatePawnStructure(whitePawns, 'white') - evaluatePawnStructure(blackPawns, 'black');
+    
+    // Passed pawn bonus
+    score += evaluatePassedPawns(whitePawns, blackPawns, 'white', boardState);
+    score -= evaluatePassedPawns(blackPawns, whitePawns, 'black', boardState);
+    
+    // Bishop pair bonus
+    let whiteBishops = 0, blackBishops = 0;
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            if (boardState[row][col] === 'B') whiteBishops++;
+            if (boardState[row][col] === 'b') blackBishops++;
+        }
+    }
+    if (whiteBishops >= 2) score += 50;
+    if (blackBishops >= 2) score -= 50;
+    
+    // Rook on open file bonus
+    score += evaluateRooks(boardState, whitePawns, blackPawns);
+    
+    return score;
+}
+
+function evaluatePawnStructure(pawns, color) {
+    let score = 0;
+    const files = new Array(8).fill(0);
+    
+    for (const pawn of pawns) {
+        files[pawn.col]++;
+    }
+    
+    // Doubled pawns penalty
+    for (let col = 0; col < 8; col++) {
+        if (files[col] > 1) {
+            score -= (files[col] - 1) * 20;
+        }
+    }
+    
+    // Isolated pawns penalty
+    for (const pawn of pawns) {
+        const hasNeighbor = (pawn.col > 0 && files[pawn.col - 1] > 0) ||
+                           (pawn.col < 7 && files[pawn.col + 1] > 0);
+        if (!hasNeighbor) {
+            score -= 15;
+        }
+    }
+    
+    return score;
+}
+
+function evaluatePassedPawns(friendlyPawns, enemyPawns, color, boardState) {
+    let score = 0;
+    
+    for (const pawn of friendlyPawns) {
+        let isPassed = true;
+        const direction = color === 'white' ? -1 : 1;
+        const promotionRow = color === 'white' ? 0 : 7;
+        
+        // Check if any enemy pawn can block or capture
+        for (const enemyPawn of enemyPawns) {
+            if (Math.abs(enemyPawn.col - pawn.col) <= 1) {
+                if (color === 'white' && enemyPawn.row < pawn.row) {
+                    isPassed = false;
+                    break;
+                }
+                if (color === 'black' && enemyPawn.row > pawn.row) {
+                    isPassed = false;
+                    break;
+                }
+            }
+        }
+        
+        if (isPassed) {
+            const distanceToPromotion = Math.abs(pawn.row - promotionRow);
+            score += PASSED_PAWN_BONUS[distanceToPromotion];
+        }
+    }
+    
+    return score;
+}
+
+function evaluateRooks(boardState, whitePawns, blackPawns) {
+    let score = 0;
+    
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = boardState[row][col];
+            if (piece === 'R' || piece === 'r') {
+                const isWhite = piece === 'R';
+                let hasWhitePawn = whitePawns.some(p => p.col === col);
+                let hasBlackPawn = blackPawns.some(p => p.col === col);
+                
+                // Open file (no pawns)
+                if (!hasWhitePawn && !hasBlackPawn) {
+                    score += isWhite ? 25 : -25;
+                }
+                // Semi-open file (only enemy pawns)
+                else if (isWhite && !hasWhitePawn && hasBlackPawn) {
+                    score += 15;
+                }
+                else if (!isWhite && hasWhitePawn && !hasBlackPawn) {
+                    score -= 15;
+                }
+            }
+        }
+    }
     
     return score;
 }
