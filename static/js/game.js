@@ -23,6 +23,9 @@ const ZOOM_STEP = 10;
 const MIN_ZOOM = 60;
 const MAX_ZOOM = 120;
 
+// Mobile Mode Toggle (reveal or flag)
+let currentMode = 'reveal'; // 'reveal' or 'flag'
+
 // DOM Elements
 const boardElement = document.getElementById('board');
 const minesRemainingElement = document.getElementById('mines-remaining');
@@ -39,6 +42,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Detect mobile device
     isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     
+    // Initialize mode toggle for mobile
+    initModeToggle();
+    
     // Initialize zoom controls
     initZoomControls();
     
@@ -48,6 +54,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 newGameBtn.addEventListener('click', initGame);
 copyBtn.addEventListener('click', copyKey);
+
+/**
+ * Initialize mode toggle buttons for mobile (Reveal/Flag)
+ */
+function initModeToggle() {
+    const modeReveal = document.getElementById('mode-reveal');
+    const modeFlag = document.getElementById('mode-flag');
+    
+    if (modeReveal && modeFlag) {
+        modeReveal.addEventListener('click', () => {
+            currentMode = 'reveal';
+            modeReveal.classList.add('active');
+            modeFlag.classList.remove('active');
+        });
+        
+        modeFlag.addEventListener('click', () => {
+            currentMode = 'flag';
+            modeFlag.classList.add('active');
+            modeReveal.classList.remove('active');
+        });
+    }
+}
 
 /**
  * Initialize zoom controls for mobile
@@ -280,50 +308,38 @@ function createBoard() {
 }
 
 /**
- * Handle touch start (for mobile long press detection)
+ * Handle touch start (for mobile)
  */
 function handleTouchStart(x, y, cell) {
     touchStartTime = Date.now();
     currentTouchCell = cell;
-    
-    // Start long press timer
-    touchTimer = setTimeout(() => {
-        // Long press detected - flag the cell
-        cell.classList.add('pressing');
-        
-        // Vibrate if supported
-        if (navigator.vibrate) {
-            navigator.vibrate(50);
-        }
-        
-        handleRightClick(x, y);
-        currentTouchCell = null;
-    }, LONG_PRESS_DURATION);
     
     // Visual feedback
     cell.classList.add('pressing');
 }
 
 /**
- * Handle touch end
+ * Handle touch end - use mode toggle for action
  */
 function handleTouchEnd(x, y) {
-    const touchDuration = Date.now() - touchStartTime;
-    
-    // Clear long press timer
-    if (touchTimer) {
-        clearTimeout(touchTimer);
-        touchTimer = null;
-    }
-    
     // Remove visual feedback
     if (currentTouchCell) {
         currentTouchCell.classList.remove('pressing');
     }
     
-    // If it was a short tap (not a long press), reveal the cell
-    if (touchDuration < LONG_PRESS_DURATION && currentTouchCell) {
-        handleCellClick(x, y);
+    // Perform action based on current mode
+    if (currentTouchCell) {
+        if (currentMode === 'flag') {
+            // Flag mode - toggle flag
+            handleRightClick(x, y);
+            // Vibrate feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(30);
+            }
+        } else {
+            // Reveal mode - reveal cell
+            handleCellClick(x, y);
+        }
     }
     
     currentTouchCell = null;
@@ -333,11 +349,6 @@ function handleTouchEnd(x, y) {
  * Handle touch cancel (finger moved or interrupted)
  */
 function handleTouchCancel() {
-    if (touchTimer) {
-        clearTimeout(touchTimer);
-        touchTimer = null;
-    }
-    
     if (currentTouchCell) {
         currentTouchCell.classList.remove('pressing');
         currentTouchCell = null;
