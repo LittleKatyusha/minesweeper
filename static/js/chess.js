@@ -1,5 +1,5 @@
 // Chess Game - JavaScript Logic
-// Stockfish 16 NNUE Powered Chess AI
+// Stockfish 10 Classic Powered Chess AI (Maximum Difficulty, Fast Response)
 
 const BOARD_SIZE = 8;
 const PIECES = {
@@ -9,8 +9,8 @@ const PIECES = {
     BLACK_BISHOP: '♝', BLACK_KNIGHT: '♞', BLACK_PAWN: '♟'
 };
 
-const STOCKFISH_DEPTH = 22;
-const STOCKFISH_TIME = 2000;
+const STOCKFISH_DEPTH = 15;
+const STOCKFISH_TIME = 500;
 
 let stockfish = null;
 let stockfishReady = false;
@@ -55,12 +55,11 @@ function initStockfish() {
         stockfish.onmessage = function(event) {
             const message = event.data;
             if (message === 'uciok') {
-                stockfish.postMessage('setoption name UCI_LimitStrength value false');
                 stockfish.postMessage('setoption name Skill Level value 20');
                 stockfish.postMessage('setoption name MultiPV value 1');
                 stockfish.postMessage('setoption name Contempt value 100');
-                stockfish.postMessage('setoption name Hash value 128');
-                stockfish.postMessage('setoption name Threads value 2');
+                stockfish.postMessage('setoption name Hash value 64');
+                stockfish.postMessage('setoption name Threads value 1');
                 stockfish.postMessage('isready');
             } else if (message === 'readyok') {
                 stockfishReady = true;
@@ -118,17 +117,66 @@ function parseStockfishMove(moveStr, boardState) {
 async function getStockfishMove(boardState) {
     if (!stockfishReady || !stockfish) return null;
     return new Promise((resolve) => {
+        const isOpening = moveHistory.length < 10;
+        let candidates = new Map();
+        let resolved = false;
+        
+        if (isOpening) stockfish.postMessage('setoption name MultiPV value 4');
+        else stockfish.postMessage('setoption name MultiPV value 1');
+
         stockfish.onmessage = function(event) {
             const msg = event.data;
-            if (msg.startsWith('bestmove')) {
-                const best = msg.split(' ')[1];
+            if (isOpening && msg.startsWith('info') && msg.includes('pv') && msg.includes('score')) {
+                try {
+                    const pvMatch = msg.match(/pv\s+(\S+)/);
+                    const scoreMatch = msg.match(/score\s+(cp|mate)\s+(-?\d+)/);
+                    if (pvMatch && scoreMatch) {
+                        const move = pvMatch[1];
+                        const type = scoreMatch[1];
+                        const val = parseInt(scoreMatch[2]);
+                        const score = type === 'mate' ? (val > 0 ? 100000 - val : -100000 - val) : val;
+                        candidates.set(move, score);
+                    }
+                } catch (e) {}
+            }
+            if (msg.startsWith('bestmove') && !resolved) {
+                resolved = true;
+                let best = msg.split(' ')[1];
+                if (isOpening && candidates.size > 1) {
+                    let maxScore = -Infinity;
+                    candidates.forEach(s => { if (s > maxScore) maxScore = s; });
+                    const validOptions = [];
+                    candidates.forEach((score, move) => {
+                        if (score >= maxScore - 40) validOptions.push(move);
+                    });
+                    if (validOptions.length > 0) {
+                        best = validOptions[Math.floor(Math.random() * validOptions.length)];
+                    }
+                }
                 resolve(parseStockfishMove(best, boardState));
             }
         };
-        setTimeout(() => { if (stockfishResolve) { stockfishResolve = null; resolve(null); } }, STOCKFISH_TIME + 1000);
+        setTimeout(() => { if (!resolved) { resolved = true; resolve(null); } }, STOCKFISH_TIME + 1000);
         stockfish.postMessage('position fen ' + boardToFEN(boardState));
         stockfish.postMessage('go depth ' + STOCKFISH_DEPTH + ' movetime ' + STOCKFISH_TIME);
     });
+}
+
+function getRandomAIMove(boardState) {
+    const allMoves = [];
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const piece = boardState[r][c];
+            if (piece && !isWhitePiece(piece)) {
+                const moves = getValidMoves(r, c, boardState, true);
+                for (const move of moves) {
+                    allMoves.push({ fromRow: r, fromCol: c, toRow: move.row, toCol: move.col, moveInfo: move });
+                }
+            }
+        }
+    }
+    if (allMoves.length === 0) return null;
+    return allMoves[Math.floor(Math.random() * allMoves.length)];
 }
 
 document.addEventListener('DOMContentLoaded', () => { initGame(); setupEventListeners(); });
@@ -320,9 +368,27 @@ function hasLegalMoves(color, bs) { for (let r = 0; r < 8; r++) for (let c = 0; 
 async function makeAIMove() {
     if (gameOver || currentTurn !== 'black') return;
     boardElement.classList.add('ai-thinking');
-    let bestMove = stockfishReady ? await getStockfishMove(board) : null;
+    
+    let bestMove = null;
+    if (stockfishReady) {
+        try {
+            bestMove = await getStockfishMove(board);
+        } catch (e) {
+            console.error('Stockfish error:', e);
+        }
+    }
+    
+    // Fallback to random move if Stockfish fails
+    if (!bestMove) {
+        bestMove = getRandomAIMove(board);
+    }
+    
     boardElement.classList.remove('ai-thinking');
-    if (bestMove) { selectedCell = { row: bestMove.fromRow, col: bestMove.fromCol }; makeMove(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol, bestMove.moveInfo); }
+    
+    if (bestMove) {
+        selectedCell = { row: bestMove.fromRow, col: bestMove.fromCol };
+        makeMove(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol, bestMove.moveInfo);
+    }
 }
 
 function updateStatus(msg, cls = '') { statusText.textContent = msg; statusText.className = cls; }

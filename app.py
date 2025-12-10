@@ -28,6 +28,12 @@ from database import (
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+@app.after_request
+def add_header(response):
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    return response
+
 # Game configuration
 BOARD_SIZE = 25
 TOTAL_MINES = 120
