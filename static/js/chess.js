@@ -31,15 +31,23 @@ const PIECE_VALUES = {
     'k': 20000
 };
 
-// AI Configuration - EXTREME DIFFICULTY
-const AI_DEPTH = 6;
+// AI Configuration - STOCKFISH POWERED
+const AI_DEPTH = 6; // Fallback depth if Stockfish unavailable
 const QUIESCENCE_DEPTH = 4;
 const AI_TIME_LIMIT = 1500; // Max 1.5 seconds per move
+const STOCKFISH_DEPTH = 15; // Stockfish search depth
+const STOCKFISH_TIME = 1000; // Stockfish time limit in ms
+const USE_STOCKFISH = true; // Enable Stockfish engine
 const USE_ITERATIVE_DEEPENING = true;
 const USE_TRANSPOSITION_TABLE = true;
 const USE_KILLER_MOVES = true;
 const USE_NULL_MOVE_PRUNING = true;
 const USE_ASPIRATION_WINDOWS = true;
+
+// Stockfish engine
+let stockfish = null;
+let stockfishReady = false;
+let stockfishResolve = null;
 
 // Transposition table and search helpers
 let transpositionTable = new Map();
@@ -48,6 +56,201 @@ let historyTable = {};
 let nodesSearched = 0;
 let searchStartTime = 0;
 let searchAborted = false;
+
+// Initialize Stockfish
+function initStockfish() {
+    if (!USE_STOCKFISH) {
+        console.log('🔧 Stockfish disabled in configuration');
+        return;
+    }
+    
+    console.log('🔄 Initializing Stockfish engine...');
+    
+    try {
+        // Load Stockfish from local file
+        stockfish = new Worker('/static/js/stockfish.js');
+        console.log('✅ Stockfish Worker created successfully');
+        
+        stockfish.onmessage = function(event) {
+            const message = event.data;
+            console.log('📨 Stockfish:', message);
+            
+            if (message === 'uciok') {
+                console.log('✅ Stockfish UCI protocol initialized');
+                stockfish.postMessage('isready');
+            } else if (message === 'readyok') {
+                stockfishReady = true;
+                console.log('🎉 Stockfish engine ready! AI is now at GRANDMASTER level!');
+            } else if (message.startsWith('bestmove')) {
+                const parts = message.split(' ');
+                const bestMove = parts[1];
+                console.log('🎯 Stockfish best move:', bestMove);
+                if (stockfishResolve && bestMove && bestMove !== '(none)') {
+                    stockfishResolve(bestMove);
+                    stockfishResolve = null;
+                }
+            } else if (message.startsWith('info')) {
+                // Log search info (depth, score, etc.)
+                if (message.includes('depth') && message.includes('score')) {
+                    const depthMatch = message.match(/depth (\d+)/);
+                    const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
+                    if (depthMatch && scoreMatch) {
+                        const depth = depthMatch[1];
+                        const scoreType = scoreMatch[1];
+                        const scoreValue = scoreMatch[2];
+                        if (scoreType === 'mate') {
+                            console.log(`📊 Depth ${depth}: Mate in ${scoreValue}`);
+                        } else {
+                            console.log(`📊 Depth ${depth}: Score ${(parseInt(scoreValue) / 100).toFixed(2)}`);
+                        }
+                    }
+                }
+            }
+        };
+        
+        stockfish.onerror = function(error) {
+            console.error('❌ Stockfish Worker error:', error);
+            console.log('⚠️ Falling back to built-in AI engine');
+            stockfishReady = false;
+        };
+        
+        // Initialize UCI protocol
+        console.log('🔄 Sending UCI initialization...');
+        stockfish.postMessage('uci');
+        
+        // Set options for stronger play
+        setTimeout(() => {
+            if (stockfish && stockfishReady) {
+                console.log('⚙️ Configuring Stockfish for maximum strength...');
+                stockfish.postMessage('setoption name Skill Level value 20');
+                stockfish.postMessage('setoption name Contempt value 50');
+                console.log('✅ Stockfish configured: Skill Level 20, Contempt 50');
+            }
+        }, 1000);
+        
+    } catch (error) {
+        console.error('❌ Failed to initialize Stockfish:', error);
+        console.log('⚠️ Falling back to built-in AI engine');
+        stockfishReady = false;
+    }
+}
+
+// Convert board to FEN notation
+function boardToFEN(boardState) {
+    let fen = '';
+    
+    for (let row = 0; row < 8; row++) {
+        let empty = 0;
+        for (let col = 0; col < 8; col++) {
+            const piece = boardState[row][col];
+            if (piece) {
+                if (empty > 0) {
+                    fen += empty;
+                    empty = 0;
+                }
+                fen += piece;
+            } else {
+                empty++;
+            }
+        }
+        if (empty > 0) fen += empty;
+        if (row < 7) fen += '/';
+    }
+    
+    // Add turn
+    fen += ' ' + (currentTurn === 'white' ? 'w' : 'b');
+    
+    // Add castling rights
+    let castling = '';
+    if (!whiteKingMoved) {
+        if (!whiteRookKingsideMoved) castling += 'K';
+        if (!whiteRookQueensideMoved) castling += 'Q';
+    }
+    if (!blackKingMoved) {
+        if (!blackRookKingsideMoved) castling += 'k';
+        if (!blackRookQueensideMoved) castling += 'q';
+    }
+    fen += ' ' + (castling || '-');
+    
+    // Add en passant
+    if (enPassantTarget) {
+        const files = 'abcdefgh';
+        const ranks = '87654321';
+        fen += ' ' + files[enPassantTarget.col] + ranks[enPassantTarget.row];
+    } else {
+        fen += ' -';
+    }
+    
+    // Add halfmove and fullmove clocks
+    fen += ' 0 ' + Math.floor(moveHistory.length / 2 + 1);
+    
+    return fen;
+}
+
+// Parse Stockfish move (e.g., "e2e4" or "e7e8q")
+function parseStockfishMove(moveStr, boardState) {
+    if (!moveStr || moveStr.length < 4) return null;
+    
+    const files = 'abcdefgh';
+    const ranks = '87654321';
+    
+    const fromCol = files.indexOf(moveStr[0]);
+    const fromRow = ranks.indexOf(moveStr[1]);
+    const toCol = files.indexOf(moveStr[2]);
+    const toRow = ranks.indexOf(moveStr[3]);
+    
+    if (fromCol < 0 || fromRow < 0 || toCol < 0 || toRow < 0) return null;
+    
+    const piece = boardState[fromRow][fromCol];
+    if (!piece) return null;
+    
+    // Get valid moves to find the matching move info
+    const validMoves = getValidMoves(fromRow, fromCol, boardState, true);
+    const moveInfo = validMoves.find(m => m.row === toRow && m.col === toCol);
+    
+    if (!moveInfo) return null;
+    
+    // Handle promotion
+    if (moveStr.length === 5) {
+        moveInfo.promotion = moveStr[4];
+    }
+    
+    return {
+        fromRow, fromCol, toRow, toCol,
+        moveInfo
+    };
+}
+
+// Get best move from Stockfish
+async function getStockfishMove(boardState) {
+    if (!stockfishReady || !stockfish) {
+        console.log('⚠️ Stockfish not ready, using fallback AI');
+        return null;
+    }
+    
+    console.log('🤔 Stockfish is analyzing position...');
+    
+    return new Promise((resolve) => {
+        stockfishResolve = (moveStr) => {
+            const move = parseStockfishMove(moveStr, boardState);
+            resolve(move);
+        };
+        
+        // Set timeout in case Stockfish doesn't respond
+        setTimeout(() => {
+            if (stockfishResolve) {
+                console.log('⏱️ Stockfish timeout, using fallback');
+                stockfishResolve = null;
+                resolve(null);
+            }
+        }, STOCKFISH_TIME + 500);
+        
+        const fen = boardToFEN(boardState);
+        console.log('📋 Position FEN:', fen);
+        stockfish.postMessage('position fen ' + fen);
+        stockfish.postMessage('go depth ' + STOCKFISH_DEPTH + ' movetime ' + STOCKFISH_TIME);
+    });
+}
 
 // Position bonus tables for piece-square evaluation
 const PAWN_TABLE = [
@@ -258,6 +461,11 @@ function initGame() {
     transpositionTable.clear();
     killerMoves = [];
     historyTable = {};
+    
+    // Initialize Stockfish if not already done
+    if (USE_STOCKFISH && !stockfish) {
+        initStockfish();
+    }
     
     hideKeyDisplay();
     updateStatus('Your turn - Select a piece to move');
@@ -914,42 +1122,60 @@ function getOpeningMove(boardState) {
     return null;
 }
 
-function makeAIMove() {
+async function makeAIMove() {
     if (gameOver || currentTurn !== 'black') return;
     
     boardElement.classList.add('ai-thinking');
-    updateStatus('AI is calculating...', '');
+    updateStatus('Stockfish is thinking...', '');
     
-    setTimeout(() => {
-        nodesSearched = 0;
-        searchStartTime = Date.now();
-        searchAborted = false;
-        
-        // Try opening book first (instant response)
-        let bestMove = getOpeningMove(board);
-        
-        if (!bestMove) {
-            if (transpositionTable.size > 500000) {
-                transpositionTable.clear();
+    nodesSearched = 0;
+    searchStartTime = Date.now();
+    searchAborted = false;
+    
+    let bestMove = null;
+    
+    // Try Stockfish first
+    if (USE_STOCKFISH && stockfishReady) {
+        try {
+            bestMove = await getStockfishMove(board);
+            if (bestMove) {
+                console.log(`Stockfish found move in ${Date.now() - searchStartTime}ms`);
             }
-            
-            killerMoves = Array(AI_DEPTH + QUIESCENCE_DEPTH + 1).fill(null).map(() => [null, null]);
-            
-            if (USE_ITERATIVE_DEEPENING) {
-                bestMove = iterativeDeepening(board, AI_DEPTH);
-            } else {
-                bestMove = findBestMove(board, AI_DEPTH);
-            }
+        } catch (error) {
+            console.error('Stockfish error:', error);
+        }
+    }
+    
+    // Fallback to opening book
+    if (!bestMove) {
+        bestMove = getOpeningMove(board);
+    }
+    
+    // Fallback to built-in AI
+    if (!bestMove) {
+        updateStatus('AI is calculating...', '');
+        
+        if (transpositionTable.size > 500000) {
+            transpositionTable.clear();
         }
         
-        boardElement.classList.remove('ai-thinking');
-        console.log(`AI searched ${nodesSearched} nodes in ${Date.now() - searchStartTime}ms`);
+        killerMoves = Array(AI_DEPTH + QUIESCENCE_DEPTH + 1).fill(null).map(() => [null, null]);
         
-        if (bestMove) {
-            selectedCell = { row: bestMove.fromRow, col: bestMove.fromCol };
-            makeMove(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol, bestMove.moveInfo);
+        if (USE_ITERATIVE_DEEPENING) {
+            bestMove = iterativeDeepening(board, AI_DEPTH);
+        } else {
+            bestMove = findBestMove(board, AI_DEPTH);
         }
-    }, 50);
+        
+        console.log(`Built-in AI searched ${nodesSearched} nodes in ${Date.now() - searchStartTime}ms`);
+    }
+    
+    boardElement.classList.remove('ai-thinking');
+    
+    if (bestMove) {
+        selectedCell = { row: bestMove.fromRow, col: bestMove.fromCol };
+        makeMove(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol, bestMove.moveInfo);
+    }
 }
 
 function iterativeDeepening(boardState, maxDepth) {
