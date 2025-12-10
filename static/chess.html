@@ -10,6 +10,23 @@
     <link rel="stylesheet" href="/static/css/chess.css">
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-content">
+            <div class="chess-loader">
+                <span class="loader-piece">♔</span>
+                <span class="loader-piece">♕</span>
+                <span class="loader-piece">♖</span>
+                <span class="loader-piece">♗</span>
+            </div>
+            <h2>Loading Stockfish Engine...</h2>
+            <p>Preparing AI opponent</p>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="game-container">
         <!-- Header Section -->
         <div id="header">

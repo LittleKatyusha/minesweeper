@@ -34,6 +34,17 @@ def add_header(response):
     response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     return response
 
+# Serve NNUE file with correct MIME type
+@app.route('/static/js/<path:filename>')
+def serve_js_files(filename):
+    """Serve JS files with correct MIME types."""
+    response = send_from_directory('static/js', filename)
+    if filename.endswith('.nnue'):
+        response.headers['Content-Type'] = 'application/octet-stream'
+    elif filename.endswith('.wasm'):
+        response.headers['Content-Type'] = 'application/wasm'
+    return response
+
 # Game configuration
 BOARD_SIZE = 25
 TOTAL_MINES = 120
