@@ -14,7 +14,7 @@
     <script>
         // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'F12' || 
+            if (e.key === 'F12' ||
                 (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
                 (e.ctrlKey && e.key === 'u')) {
                 e.preventDefault();
@@ -22,20 +22,9 @@
             }
         });
         
-        // Detect DevTools
-        (function() {
-            const devtools = {open: false};
-            const threshold = 160;
-            setInterval(function() {
-                if (window.outerWidth - window.innerWidth > threshold || 
-                    window.outerHeight - window.innerHeight > threshold) {
-                    if (!devtools.open) {
-                        devtools.open = true;
-                        document.body.innerHTML = '<h1 style="color:red;text-align:center;margin-top:200px;">DevTools Detected! Game Disabled.</h1>';
-                    }
-                }
-            }, 1000);
-        })();
+        // Note: DevTools size detection removed because it causes false positives
+        // when browser zoom is used. The real security is server-side - mine positions
+        // are never sent to the client until the game is over.
     </script>
 
     <div id="game-container">
