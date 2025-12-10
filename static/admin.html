@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Minesweeper Keys</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div id="admin-container">
+        <h1>🔑 Admin Panel - Key Management</h1>
+        
+        <!-- Login Section (simple password) -->
+        <div id="login-section">
+            <h2>Admin Login</h2>
+            <input type="password" id="admin-password" placeholder="Enter admin password">
+            <button id="login-btn">Login</button>
+            <p id="login-error" style="color: red;"></p>
+        </div>
+        
+        <!-- Admin Content (hidden until login) -->
+        <div id="admin-content" style="display: none;">
+            <!-- Stats -->
+            <div id="stats-section">
+                <h2>📊 Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-number" id="total-keys">0</span>
+                        <span class="stat-label">Total Keys</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" id="active-keys">0</span>
+                        <span class="stat-label">Active Keys</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" id="revoked-keys">0</span>
+                        <span class="stat-label">Revoked Keys</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Key Verification -->
+            <div id="verify-section">
+                <h2>🔍 Verify Key</h2>
+                <input type="text" id="verify-input" placeholder="Enter key to verify (MINE-XXXX-XXXX-XXXX-XXXX)">
+                <button id="verify-btn">Verify</button>
+                <p id="verify-result"></p>
+            </div>
+            
+            <!-- Keys Table -->
+            <div id="keys-section">
+                <h2>📋 All Generated Keys</h2>
+                <div class="table-controls">
+                    <input type="text" id="search-input" placeholder="Search keys...">
+                    <select id="filter-status">
+                        <option value="all">All</option>
+                        <option value="active">Active Only</option>
+                        <option value="revoked">Revoked Only</option>
+                    </select>
+                    <button id="refresh-btn">🔄 Refresh</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="keys-table">
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                                <th>Created At</th>
+                                <th>IP Address</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keys-tbody">
+                            <!-- Keys will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/admin.js"></script>
+</body>
+</html>

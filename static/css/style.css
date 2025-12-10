@@ -1,0 +1,244 @@
+/* Minesweeper Key System - Stylesheet */
+/* This file will contain the game styling */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    user-select: none;
+}
+
+#game-container {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+/* Header Section */
+#header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#header p {
+    color: #aaa;
+    font-size: 1rem;
+}
+
+/* Info Bar */
+#info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+#mines-count, #timer {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+#timer.warning {
+    color: #ff4444;
+    animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+#new-game-btn {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s, transform 0.2s;
+}
+
+#new-game-btn:hover {
+    background: #45a049;
+    transform: scale(1.05);
+}
+
+/* Game Board */
+#board {
+    display: grid;
+    grid-template-columns: repeat(25, 22px);
+    grid-template-rows: repeat(25, 22px);
+    gap: 1px;
+    background: #333;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 0 auto;
+}
+
+.cell {
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+    border: 1px solid #555;
+    border-radius: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    transition: all 0.1s;
+}
+
+.cell:hover {
+    background: linear-gradient(145deg, #5a5a5a, #4a4a4a);
+}
+
+.cell.revealed {
+    background: #2a2a2a;
+    cursor: default;
+}
+
+.cell.flagged {
+    background: linear-gradient(145deg, #ff6b6b, #ee5a5a);
+}
+
+.cell.mine {
+    background: #ff4444;
+}
+
+/* Number colors */
+.cell[data-number="1"] { color: #3498db; }
+.cell[data-number="2"] { color: #2ecc71; }
+.cell[data-number="3"] { color: #e74c3c; }
+.cell[data-number="4"] { color: #9b59b6; }
+.cell[data-number="5"] { color: #e67e22; }
+.cell[data-number="6"] { color: #1abc9c; }
+.cell[data-number="7"] { color: #34495e; }
+.cell[data-number="8"] { color: #95a5a6; }
+
+/* Message Area */
+#message-area {
+    text-align: center;
+    margin-top: 20px;
+    min-height: 30px;
+}
+
+#status-message {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+#status-message.win {
+    color: #4CAF50;
+}
+
+#status-message.lose {
+    color: #ff4444;
+}
+
+/* Key Display */
+#key-display {
+    text-align: center;
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(76, 175, 80, 0.2);
+    border-radius: 10px;
+    border: 2px solid #4CAF50;
+}
+
+#key-display h2 {
+    color: #4CAF50;
+    margin-bottom: 15px;
+}
+
+#key-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+#key-value {
+    background: #1a1a2e;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    border: 1px solid #4CAF50;
+}
+
+#copy-btn {
+    background: #2196F3;
+    color: white;
+    border: none;
+    padding: 15px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s;
+}
+
+#copy-btn:hover {
+    background: #1976D2;
+}
+
+#proxy-link {
+    color: #4CAF50;
+    text-decoration: none;
+    font-size: 1.1rem;
+    display: inline-block;
+    margin-top: 10px;
+    transition: color 0.3s;
+}
+
+#proxy-link:hover {
+    color: #66BB6A;
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    #board {
+        grid-template-columns: repeat(25, 16px);
+        grid-template-rows: repeat(25, 16px);
+    }
+    
+    .cell {
+        width: 16px;
+        height: 16px;
+        font-size: 9px;
+    }
+    
+    #header h1 {
+        font-size: 1.8rem;
+    }
+    
+    #info-bar {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

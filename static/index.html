@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minesweeper - Get Your Proxy Key</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body oncontextmenu="return false;">
+    <!-- Anti-DevTools Script -->
+    <script>
+        // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+                (e.ctrlKey && e.key === 'u')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Detect DevTools
+        (function() {
+            const devtools = {open: false};
+            const threshold = 160;
+            setInterval(function() {
+                if (window.outerWidth - window.innerWidth > threshold || 
+                    window.outerHeight - window.innerHeight > threshold) {
+                    if (!devtools.open) {
+                        devtools.open = true;
+                        document.body.innerHTML = '<h1 style="color:red;text-align:center;margin-top:200px;">DevTools Detected! Game Disabled.</h1>';
+                    }
+                }
+            }, 1000);
+        })();
+    </script>
+
+    <div id="game-container">
+        <!-- Header Section -->
+        <div id="header">
+            <h1>💣 MINESWEEPER</h1>
+            <p>Complete the game to get your proxy key</p>
+        </div>
+        
+        <!-- Game Info Bar -->
+        <div id="info-bar">
+            <div id="mines-count">💣 <span id="mines-remaining">120</span></div>
+            <div id="timer">⏱️ <span id="time">06:00</span></div>
+            <button id="new-game-btn">🔄 New Game</button>
+        </div>
+        
+        <!-- Game Board - 25x25 grid -->
+        <div id="board">
+            <!-- 625 cells akan di-generate oleh JavaScript -->
+        </div>
+        
+        <!-- Status/Message Area -->
+        <div id="message-area">
+            <p id="status-message"></p>
+        </div>
+        
+        <!-- Key Display (hidden by default) -->
+        <div id="key-display" style="display: none;">
+            <h2>🎉 Congratulations!</h2>
+            <p>Your Proxy Key:</p>
+            <div id="key-box">
+                <code id="key-value"></code>
+                <button id="copy-btn">📋 Copy</button>
+            </div>
+            <p><a href="/proxy?key=" id="proxy-link">Go to Proxy →</a></p>
+        </div>
+        
+    </div>
+
+    <!-- Game JavaScript -->
+    <script src="/static/js/game.js"></script>
+</body>
+</html>
