@@ -32,8 +32,9 @@ const PIECE_VALUES = {
 };
 
 // AI Configuration - EXTREME DIFFICULTY
-const AI_DEPTH = 7;
-const QUIESCENCE_DEPTH = 6;
+const AI_DEPTH = 6;
+const QUIESCENCE_DEPTH = 4;
+const AI_TIME_LIMIT = 1500; // Max 1.5 seconds per move
 const USE_ITERATIVE_DEEPENING = true;
 const USE_TRANSPOSITION_TABLE = true;
 const USE_KILLER_MOVES = true;
@@ -46,6 +47,7 @@ let killerMoves = [];
 let historyTable = {};
 let nodesSearched = 0;
 let searchStartTime = 0;
+let searchAborted = false;
 
 // Position bonus tables for piece-square evaluation
 const PAWN_TABLE = [
@@ -126,6 +128,56 @@ const KING_ENDGAME_TABLE = [
 ];
 
 const PASSED_PAWN_BONUS = [0, 120, 80, 50, 30, 15, 15, 0];
+
+// ============================================
+// OPENING BOOK - Strong opening moves for Black
+// ============================================
+const OPENING_BOOK = {
+    // Response to 1.e4
+    'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR': [
+        { from: [1, 4], to: [3, 4] }, // e5 - Open Game
+        { from: [1, 2], to: [2, 2] }, // c6 - Caro-Kann
+        { from: [1, 4], to: [2, 4] }, // e6 - French Defense
+        { from: [1, 2], to: [3, 2] }, // c5 - Sicilian Defense
+    ],
+    // Response to 1.d4
+    'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR': [
+        { from: [1, 3], to: [3, 3] }, // d5 - Closed Game
+        { from: [0, 6], to: [2, 5] }, // Nf6 - Indian Defense
+        { from: [1, 4], to: [2, 4] }, // e6 - Queen's Gambit Declined setup
+    ],
+    // Response to 1.c4 (English)
+    'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR': [
+        { from: [1, 4], to: [3, 4] }, // e5
+        { from: [0, 6], to: [2, 5] }, // Nf6
+        { from: [1, 2], to: [3, 2] }, // c5 - Symmetrical
+    ],
+    // Response to 1.Nf3
+    'rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R': [
+        { from: [1, 3], to: [3, 3] }, // d5
+        { from: [0, 6], to: [2, 5] }, // Nf6
+    ],
+    // After 1.e4 e5 2.Nf3
+    'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
+        { from: [0, 1], to: [2, 2] }, // Nc6
+    ],
+    // After 1.e4 c5 (Sicilian) 2.Nf3
+    'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
+        { from: [1, 3], to: [2, 3] }, // d6
+        { from: [0, 1], to: [2, 2] }, // Nc6
+        { from: [1, 4], to: [2, 4] }, // e6
+    ],
+    // After 1.d4 d5 2.c4 (Queen's Gambit)
+    'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
+        { from: [1, 4], to: [2, 4] }, // e6 - QGD
+        { from: [1, 2], to: [2, 2] }, // c6 - Slav
+    ],
+    // After 1.d4 Nf6 2.c4
+    'rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR': [
+        { from: [1, 4], to: [2, 4] }, // e6 - Nimzo/QID setup
+        { from: [1, 6], to: [2, 6] }, // g6 - King's Indian
+    ],
+};
 
 // ============================================
 // GAME STATE
@@ -816,27 +868,78 @@ function hasLegalMoves(color, boardState) {
 // AI OPPONENT - MAXIMUM DIFFICULTY
 // ============================================
 
+function getBoardFEN(boardState) {
+    let fen = '';
+    for (let row = 0; row < 8; row++) {
+        let empty = 0;
+        for (let col = 0; col < 8; col++) {
+            const piece = boardState[row][col];
+            if (piece) {
+                if (empty > 0) {
+                    fen += empty;
+                    empty = 0;
+                }
+                fen += piece;
+            } else {
+                empty++;
+            }
+        }
+        if (empty > 0) fen += empty;
+        if (row < 7) fen += '/';
+    }
+    return fen;
+}
+
+function getOpeningMove(boardState) {
+    const fen = getBoardFEN(boardState);
+    const bookMoves = OPENING_BOOK[fen];
+    
+    if (bookMoves && bookMoves.length > 0) {
+        // Pick a random move from the book for variety
+        const bookMove = bookMoves[Math.floor(Math.random() * bookMoves.length)];
+        const [fromRow, fromCol] = bookMove.from;
+        const [toRow, toCol] = bookMove.to;
+        
+        // Verify the move is legal
+        const moves = getValidMoves(fromRow, fromCol, boardState, true);
+        const validMove = moves.find(m => m.row === toRow && m.col === toCol);
+        
+        if (validMove) {
+            return {
+                fromRow, fromCol, toRow, toCol,
+                moveInfo: validMove
+            };
+        }
+    }
+    return null;
+}
+
 function makeAIMove() {
     if (gameOver || currentTurn !== 'black') return;
     
     boardElement.classList.add('ai-thinking');
-    updateStatus('AI is calculating deeply...', '');
+    updateStatus('AI is calculating...', '');
     
     setTimeout(() => {
         nodesSearched = 0;
         searchStartTime = Date.now();
+        searchAborted = false;
         
-        if (transpositionTable.size > 500000) {
-            transpositionTable.clear();
-        }
+        // Try opening book first (instant response)
+        let bestMove = getOpeningMove(board);
         
-        killerMoves = Array(AI_DEPTH + QUIESCENCE_DEPTH + 1).fill(null).map(() => [null, null]);
-        
-        let bestMove;
-        if (USE_ITERATIVE_DEEPENING) {
-            bestMove = iterativeDeepening(board, AI_DEPTH);
-        } else {
-            bestMove = findBestMove(board, AI_DEPTH);
+        if (!bestMove) {
+            if (transpositionTable.size > 500000) {
+                transpositionTable.clear();
+            }
+            
+            killerMoves = Array(AI_DEPTH + QUIESCENCE_DEPTH + 1).fill(null).map(() => [null, null]);
+            
+            if (USE_ITERATIVE_DEEPENING) {
+                bestMove = iterativeDeepening(board, AI_DEPTH);
+            } else {
+                bestMove = findBestMove(board, AI_DEPTH);
+            }
         }
         
         boardElement.classList.remove('ai-thinking');
@@ -852,19 +955,25 @@ function makeAIMove() {
 function iterativeDeepening(boardState, maxDepth) {
     let bestMove = null;
     let previousScore = 0;
+    searchAborted = false;
     
     for (let depth = 1; depth <= maxDepth; depth++) {
+        // Check time before starting new depth
+        if (Date.now() - searchStartTime > AI_TIME_LIMIT) {
+            break;
+        }
+        
         let move;
         
         if (USE_ASPIRATION_WINDOWS && depth > 3 && bestMove) {
-            // Use aspiration windows for faster search
             const delta = 50;
             let alpha = previousScore - delta;
             let beta = previousScore + delta;
             
             move = findBestMoveWithWindow(boardState, depth, alpha, beta);
             
-            // If search failed, do a full window search
+            if (searchAborted) break;
+            
             if (!move || move.score <= alpha || move.score >= beta) {
                 move = findBestMove(boardState, depth);
             }
@@ -872,13 +981,12 @@ function iterativeDeepening(boardState, maxDepth) {
             move = findBestMove(boardState, depth);
         }
         
+        if (searchAborted) break;
+        
         if (move) {
             bestMove = move;
             previousScore = move.score || 0;
         }
-        
-        // Reduced time limit for faster response
-        if (Date.now() - searchStartTime > 3000) break;
     }
     
     return bestMove;
@@ -892,8 +1000,15 @@ function findBestMoveWithWindow(boardState, depth, alpha, beta) {
     orderMoves(moves, boardState, 0);
     
     for (const move of moves) {
+        if (Date.now() - searchStartTime > AI_TIME_LIMIT) {
+            searchAborted = true;
+            break;
+        }
+        
         const newBoard = simulateMove(boardState, move.fromRow, move.fromCol, move.toRow, move.toCol, move.moveInfo);
         const value = minimax(newBoard, depth - 1, alpha, beta, true, 1);
+        
+        if (searchAborted) break;
         
         if (value < bestValue) {
             bestValue = value;
@@ -916,8 +1031,15 @@ function findBestMove(boardState, depth) {
     orderMoves(moves, boardState, 0);
     
     for (const move of moves) {
+        if (Date.now() - searchStartTime > AI_TIME_LIMIT) {
+            searchAborted = true;
+            break;
+        }
+        
         const newBoard = simulateMove(boardState, move.fromRow, move.fromCol, move.toRow, move.toCol, move.moveInfo);
         const value = minimax(newBoard, depth - 1, -Infinity, Infinity, true, 1);
+        
+        if (searchAborted) break;
         
         if (value < bestValue) {
             bestValue = value;
@@ -931,6 +1053,14 @@ function findBestMove(boardState, depth) {
 
 function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
     nodesSearched++;
+    
+    // Time check every 1000 nodes
+    if (nodesSearched % 1000 === 0 && Date.now() - searchStartTime > AI_TIME_LIMIT) {
+        searchAborted = true;
+        return 0;
+    }
+    
+    if (searchAborted) return 0;
     
     const color = isMaximizing ? 'white' : 'black';
     const posKey = getBoardHash(boardState);
@@ -960,6 +1090,8 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
         const nullMoveReduction = 2 + Math.floor(depth / 4);
         const nullScore = minimax(boardState, depth - 1 - nullMoveReduction, alpha, beta, !isMaximizing, ply + 1);
         
+        if (searchAborted) return 0;
+        
         if (isMaximizing && nullScore >= beta) return beta;
         if (!isMaximizing && nullScore <= alpha) return alpha;
     }
@@ -971,6 +1103,8 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
     let flag = 'upper';
     
     for (let i = 0; i < moves.length; i++) {
+        if (searchAborted) break;
+        
         const move = moves[i];
         const newBoard = simulateMove(boardState, move.fromRow, move.fromCol, move.toRow, move.toCol, move.moveInfo);
         
@@ -981,6 +1115,8 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
             const reduction = i >= 8 ? 2 : 1;
             evalScore = minimax(newBoard, depth - 1 - reduction, alpha, beta, !isMaximizing, ply + 1);
             
+            if (searchAborted) break;
+            
             // Re-search with full depth if move looks promising
             if ((isMaximizing && evalScore > alpha) || (!isMaximizing && evalScore < beta)) {
                 evalScore = minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, ply + 1);
@@ -988,6 +1124,8 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
         } else {
             evalScore = minimax(newBoard, depth - 1, alpha, beta, !isMaximizing, ply + 1);
         }
+        
+        if (searchAborted) break;
         
         if (isMaximizing) {
             if (evalScore > bestValue) bestValue = evalScore;
@@ -1009,7 +1147,7 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
         }
     }
     
-    if (USE_TRANSPOSITION_TABLE) {
+    if (USE_TRANSPOSITION_TABLE && !searchAborted) {
         transpositionTable.set(posKey, { value: bestValue, depth, flag });
     }
     
@@ -1018,6 +1156,8 @@ function minimax(boardState, depth, alpha, beta, isMaximizing, ply) {
 
 function quiescenceSearch(boardState, alpha, beta, isMaximizing, depth) {
     nodesSearched++;
+    
+    if (searchAborted) return 0;
     
     const standPat = evaluateBoard(boardState);
     
@@ -1045,8 +1185,12 @@ function quiescenceSearch(boardState, alpha, beta, isMaximizing, depth) {
     });
     
     for (const move of captureMoves) {
+        if (searchAborted) break;
+        
         const newBoard = simulateMove(boardState, move.fromRow, move.fromCol, move.toRow, move.toCol, move.moveInfo);
         const evalScore = quiescenceSearch(newBoard, alpha, beta, !isMaximizing, depth - 1);
+        
+        if (searchAborted) break;
         
         if (isMaximizing) {
             if (evalScore >= beta) return beta;
@@ -1137,6 +1281,10 @@ function evaluateBoard(boardState) {
     let blackMaterial = 0;
     let whitePawns = [];
     let blackPawns = [];
+    let whiteKnights = 0, blackKnights = 0;
+    let whiteBishops = 0, blackBishops = 0;
+    let whiteRooks = 0, blackRooks = 0;
+    let whiteQueens = 0, blackQueens = 0;
     
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
@@ -1147,14 +1295,24 @@ function evaluateBoard(boardState) {
             if (isWhitePiece(piece)) {
                 whiteMaterial += value;
                 if (piece === 'P') whitePawns.push({ row, col });
+                else if (piece === 'N') whiteKnights++;
+                else if (piece === 'B') whiteBishops++;
+                else if (piece === 'R') whiteRooks++;
+                else if (piece === 'Q') whiteQueens++;
             } else {
                 blackMaterial += value;
                 if (piece === 'p') blackPawns.push({ row, col });
+                else if (piece === 'n') blackKnights++;
+                else if (piece === 'b') blackBishops++;
+                else if (piece === 'r') blackRooks++;
+                else if (piece === 'q') blackQueens++;
             }
         }
     }
     
-    const isEndgame = (whiteMaterial + blackMaterial) < 2600;
+    const totalMaterial = whiteMaterial + blackMaterial;
+    const isEndgame = totalMaterial < 2600;
+    const isMidgame = totalMaterial >= 2600 && totalMaterial < 6000;
     
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
@@ -1167,8 +1325,9 @@ function evaluateBoard(boardState) {
         }
     }
     
-    // King safety
-    score += evaluateKingSafety('white', boardState) - evaluateKingSafety('black', boardState);
+    // King safety (more important in middlegame)
+    const kingSafetyWeight = isEndgame ? 0.5 : 1.5;
+    score += (evaluateKingSafety('white', boardState) - evaluateKingSafety('black', boardState)) * kingSafetyWeight;
     
     // Mobility bonus
     const whiteMoves = getAllMoves('white', boardState).length;
@@ -1178,23 +1337,156 @@ function evaluateBoard(boardState) {
     // Pawn structure evaluation
     score += evaluatePawnStructure(whitePawns, 'white') - evaluatePawnStructure(blackPawns, 'black');
     
-    // Passed pawn bonus
-    score += evaluatePassedPawns(whitePawns, blackPawns, 'white', boardState);
-    score -= evaluatePassedPawns(blackPawns, whitePawns, 'black', boardState);
+    // Passed pawn bonus (more important in endgame)
+    const passedPawnWeight = isEndgame ? 1.5 : 1.0;
+    score += (evaluatePassedPawns(whitePawns, blackPawns, 'white', boardState) -
+              evaluatePassedPawns(blackPawns, whitePawns, 'black', boardState)) * passedPawnWeight;
     
     // Bishop pair bonus
-    let whiteBishops = 0, blackBishops = 0;
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
-            if (boardState[row][col] === 'B') whiteBishops++;
-            if (boardState[row][col] === 'b') blackBishops++;
-        }
-    }
     if (whiteBishops >= 2) score += 50;
     if (blackBishops >= 2) score -= 50;
     
     // Rook on open file bonus
     score += evaluateRooks(boardState, whitePawns, blackPawns);
+    
+    // Knight outpost bonus (knights on protected squares in enemy territory)
+    score += evaluateKnightOutposts(boardState, whitePawns, blackPawns);
+    
+    // Connected rooks bonus
+    score += evaluateConnectedRooks(boardState);
+    
+    // Center control bonus
+    score += evaluateCenterControl(boardState);
+    
+    // Tempo bonus for development in opening
+    if (moveHistory.length < 20) {
+        score += evaluateDevelopment(boardState);
+    }
+    
+    return score;
+}
+
+function evaluateKnightOutposts(boardState, whitePawns, blackPawns) {
+    let score = 0;
+    
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = boardState[row][col];
+            if (piece === 'N' && row <= 4) {
+                // White knight in black's territory
+                const protectedByPawn = whitePawns.some(p =>
+                    p.row === row + 1 && Math.abs(p.col - col) === 1
+                );
+                const canBeAttackedByPawn = blackPawns.some(p =>
+                    p.col === col - 1 || p.col === col + 1
+                );
+                if (protectedByPawn && !canBeAttackedByPawn) {
+                    score += 30;
+                }
+            }
+            if (piece === 'n' && row >= 3) {
+                // Black knight in white's territory
+                const protectedByPawn = blackPawns.some(p =>
+                    p.row === row - 1 && Math.abs(p.col - col) === 1
+                );
+                const canBeAttackedByPawn = whitePawns.some(p =>
+                    p.col === col - 1 || p.col === col + 1
+                );
+                if (protectedByPawn && !canBeAttackedByPawn) {
+                    score -= 30;
+                }
+            }
+        }
+    }
+    
+    return score;
+}
+
+function evaluateConnectedRooks(boardState) {
+    let score = 0;
+    let whiteRooks = [];
+    let blackRooks = [];
+    
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            if (boardState[row][col] === 'R') whiteRooks.push({ row, col });
+            if (boardState[row][col] === 'r') blackRooks.push({ row, col });
+        }
+    }
+    
+    // Check if white rooks are connected (same row or column with no pieces between)
+    if (whiteRooks.length === 2) {
+        if (whiteRooks[0].row === whiteRooks[1].row) {
+            const row = whiteRooks[0].row;
+            const minCol = Math.min(whiteRooks[0].col, whiteRooks[1].col);
+            const maxCol = Math.max(whiteRooks[0].col, whiteRooks[1].col);
+            let connected = true;
+            for (let col = minCol + 1; col < maxCol; col++) {
+                if (boardState[row][col]) { connected = false; break; }
+            }
+            if (connected) score += 20;
+        }
+    }
+    
+    if (blackRooks.length === 2) {
+        if (blackRooks[0].row === blackRooks[1].row) {
+            const row = blackRooks[0].row;
+            const minCol = Math.min(blackRooks[0].col, blackRooks[1].col);
+            const maxCol = Math.max(blackRooks[0].col, blackRooks[1].col);
+            let connected = true;
+            for (let col = minCol + 1; col < maxCol; col++) {
+                if (boardState[row][col]) { connected = false; break; }
+            }
+            if (connected) score -= 20;
+        }
+    }
+    
+    return score;
+}
+
+function evaluateCenterControl(boardState) {
+    let score = 0;
+    const centerSquares = [[3, 3], [3, 4], [4, 3], [4, 4]];
+    const extendedCenter = [[2, 2], [2, 3], [2, 4], [2, 5], [3, 2], [3, 5], [4, 2], [4, 5], [5, 2], [5, 3], [5, 4], [5, 5]];
+    
+    for (const [row, col] of centerSquares) {
+        const piece = boardState[row][col];
+        if (piece) {
+            if (isWhitePiece(piece)) score += 10;
+            else score -= 10;
+        }
+    }
+    
+    for (const [row, col] of extendedCenter) {
+        const piece = boardState[row][col];
+        if (piece) {
+            if (isWhitePiece(piece)) score += 3;
+            else score -= 3;
+        }
+    }
+    
+    return score;
+}
+
+function evaluateDevelopment(boardState) {
+    let score = 0;
+    
+    // Penalize undeveloped minor pieces
+    // White back rank pieces that haven't moved
+    if (boardState[7][1] === 'N') score -= 15; // b1 knight
+    if (boardState[7][6] === 'N') score -= 15; // g1 knight
+    if (boardState[7][2] === 'B') score -= 15; // c1 bishop
+    if (boardState[7][5] === 'B') score -= 15; // f1 bishop
+    
+    // Black back rank pieces that haven't moved
+    if (boardState[0][1] === 'n') score += 15; // b8 knight
+    if (boardState[0][6] === 'n') score += 15; // g8 knight
+    if (boardState[0][2] === 'b') score += 15; // c8 bishop
+    if (boardState[0][5] === 'b') score += 15; // f8 bishop
+    
+    // Bonus for castled king
+    if (boardState[7][6] === 'K' || boardState[7][2] === 'K') score += 30;
+    if (boardState[0][6] === 'k' || boardState[0][2] === 'k') score -= 30;
     
     return score;
 }
