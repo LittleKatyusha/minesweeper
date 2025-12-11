@@ -6,7 +6,7 @@ const GRAVITY = 0.35;
 const JUMP_FORCE = -6;
 const SPEED = 3;
 const PIPE_SPACING = 300;
-const PIPE_GAP = 160;
+const PIPE_GAP = 112;
 const TARGET_SCORE = 50; // Difficulty mainly from moving obstacles
 
 // Game state
@@ -306,7 +306,7 @@ class Pipe {
         
         // Dynamic obstacle properties
         this.moving = Math.random() > 0.7; // 30% chance of moving pipe
-        this.moveSpeed = (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? 1 : -1); // Slower movement
+        this.moveSpeed = (Math.random() * 1.2 + 0.6) * (Math.random() < 0.5 ? 1 : -1); // Faster movement
         this.initialTop = this.topHeight;
     }
     
