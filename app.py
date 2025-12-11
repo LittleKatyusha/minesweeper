@@ -27,7 +27,9 @@ from database import (
     create_blackjack_session,
     get_blackjack_session,
     update_blackjack_session,
-    get_or_create_blackjack_session_by_ip
+    get_or_create_blackjack_session_by_ip,
+    get_setting,
+    set_setting
 )
 
 app = Flask(__name__, static_folder='static')
@@ -54,13 +56,13 @@ def serve_js_files(filename):
 BOARD_SIZE = 25
 TOTAL_MINES = 120
 
-def generate_key():
-    """Generate a key in format MINE-XXXX-XXXX-XXXX-XXXX"""
+def generate_key(prefix='MINE-'):
+    """Generate a key in format PREFIX-XXXX-XXXX-XXXX-XXXX"""
     segments = []
     for _ in range(4):
         segment = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
         segments.append(segment)
-    return 'MINE-' + '-'.join(segments)
+    return prefix + '-'.join(segments)
 
 def generate_mines(board_size, total_mines):
     """Generate random mine positions."""
@@ -136,6 +138,11 @@ def chess_page():
 def blackjack_page():
     """Serve the blackjack game page."""
     return send_from_directory('static', 'blackjack.html')
+
+@app.route('/flappy')
+def flappy_page():
+    """Serve the flappy bird game page."""
+    return send_from_directory('static', 'flappy.html')
 
 @app.route('/admin')
 def admin_page():
@@ -269,7 +276,7 @@ def check_win():
         mark_game_completed(session_id)
         
         # Generate and save key
-        key = generate_key()
+        key = generate_key(prefix='MINE-')
         ip_address = request.remote_addr
         create_key(key, session_id, ip_address)
         
@@ -325,12 +332,42 @@ def get_stats_endpoint():
     stats = get_key_stats()
     return jsonify(stats)
 
+@app.route('/api/admin/settings', methods=['GET', 'POST'])
+def admin_settings():
+    """Get or update admin settings."""
+    if request.method == 'GET':
+        return jsonify({
+            'flappy_key': get_setting('flappy_key', 'FLAP-DEFAULT-KEY')
+        })
+    else:
+        data = request.get_json()
+        flappy_key = data.get('flappy_key')
+        if flappy_key:
+            set_setting('flappy_key', flappy_key)
+            return jsonify({'success': True})
+        return jsonify({'error': 'Missing parameters'}), 400
+
 @app.route('/api/chess-win', methods=['POST'])
 def chess_win():
     """Generate a key when player wins chess game."""
-    key = generate_key().replace('MINE-', 'CHESS-')
+    key = generate_key(prefix='CHESS-')
     ip_address = request.remote_addr
     create_key(key, 'chess-game', ip_address)
+    
+    return jsonify({
+        'success': True,
+        'key': key
+    })
+
+@app.route('/api/flappy-win', methods=['POST'])
+def flappy_win():
+    """Return the configured key when player wins flappy game."""
+    # Get key from settings or default
+    key = get_setting('flappy_key', 'FLAP-DEFAULT-KEY')
+    ip_address = request.remote_addr
+    
+    # We still record it in the keys table to track usage/winners
+    create_key(key, 'flappy-game', ip_address)
     
     return jsonify({
         'success': True,
@@ -497,7 +534,7 @@ def blackjack_deal():
         }
         
         if new_streak >= BLACKJACK_TARGET_WINS:
-            key = generate_key().replace('MINE-', 'BJ-')
+            key = generate_key(prefix='BJ-')
             create_key(key, session_id, ip_address)
             response['key'] = key
             response['victory'] = True
@@ -644,7 +681,7 @@ def blackjack_stand_internal(session_id):
         }
         
         if new_streak >= BLACKJACK_TARGET_WINS:
-            key = generate_key().replace('MINE-', 'BJ-')
+            key = generate_key(prefix='BJ-')
             create_key(key, session_id, ip_address)
             response['key'] = key
             response['victory'] = True
@@ -676,7 +713,7 @@ def blackjack_stand_internal(session_id):
         }
         
         if new_streak >= BLACKJACK_TARGET_WINS:
-            key = generate_key().replace('MINE-', 'BJ-')
+            key = generate_key(prefix='BJ-')
             create_key(key, session_id, ip_address)
             response['key'] = key
             response['victory'] = True

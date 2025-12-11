@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry Flap - Win Key</title>
+    <link rel="stylesheet" href="/static/css/flappy.css">
+</head>
+<body>
+    <div class="bg-grid"></div>
+    
+    <a href="/" class="back-btn">← Back to Home</a>
+    
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="particles"></div>
+        
+        <div id="ui-layer">
+            <div class="score-display">SCORE: <span id="score">0</span></div>
+            
+            <div id="start-screen" class="menu-screen active">
+                <h1>GEOMETRY FLAP</h1>
+                <p>Avoid the pipes! Reach score 10 to win.</p>
+                <button id="start-btn">START GAME</button>
+                <p class="instructions">Press Space or Click to Jump</p>
+            </div>
+            
+            <div id="game-over-screen" class="menu-screen">
+                <h1>CRASHED!</h1>
+                <p>Score: <span id="final-score">0</span></p>
+                <button id="restart-btn">TRY AGAIN</button>
+            </div>
+            
+            <div id="win-screen" class="menu-screen">
+                <h1>LEVEL COMPLETE!</h1>
+                <p>You have proven your skills.</p>
+                
+                <div id="key-display" class="key-display">
+                    <span class="key-text">Your Proxy Key:</span>
+                    <code id="key-value" class="key-text">Loading...</code>
+                    <button id="copy-btn">COPY</button>
+                </div>
+                
+                <button onclick="location.reload()">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/flappy.js"></script>
+</body>
+</html>

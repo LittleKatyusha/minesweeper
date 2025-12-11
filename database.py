@@ -58,6 +58,14 @@ def init_db():
                 FOREIGN KEY (session_id) REFERENCES game_sessions(session_id)
             )
         ''')
+
+        # Create settings table for dynamic configuration
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        ''')
         
         conn.commit()
 
@@ -155,6 +163,11 @@ def create_key(key_value, session_id, ip_address=None):
         cursor.execute('''
             INSERT INTO keys (key_value, session_id, ip_address)
             VALUES (?, ?, ?)
+            ON CONFLICT(key_value) DO UPDATE SET
+            created_at = CURRENT_TIMESTAMP,
+            is_active = 1,
+            session_id = excluded.session_id,
+            ip_address = excluded.ip_address
         ''', (key_value, session_id, ip_address))
         conn.commit()
 
@@ -381,4 +394,19 @@ def delete_blackjack_session(session_id):
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('DELETE FROM blackjack_sessions WHERE session_id = ?', (session_id,))
+        conn.commit()
+
+def get_setting(key, default=None):
+    """Get a setting value."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT value FROM settings WHERE key = ?', (key,))
+        row = cursor.fetchone()
+        return row['value'] if row else default
+
+def set_setting(key, value):
+    """Set a setting value."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
         conn.commit()

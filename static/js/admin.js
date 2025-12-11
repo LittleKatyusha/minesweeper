@@ -13,6 +13,8 @@ const verifyResult = document.getElementById('verify-result');
 const refreshBtn = document.getElementById('refresh-btn');
 const searchInput = document.getElementById('search-input');
 const filterStatus = document.getElementById('filter-status');
+const flappyKeyInput = document.getElementById('flappy-key-input');
+const saveSettingsBtn = document.getElementById('save-settings-btn');
 
 // Store all keys for filtering
 let allKeys = [];
@@ -35,6 +37,9 @@ refreshBtn.addEventListener('click', () => {
     loadKeys();
 });
 
+// Settings handler
+saveSettingsBtn.addEventListener('click', saveSettings);
+
 // Search and filter handlers
 searchInput.addEventListener('input', filterKeys);
 filterStatus.addEventListener('change', filterKeys);
@@ -45,6 +50,7 @@ function login() {
         adminContent.style.display = 'block';
         loadStats();
         loadKeys();
+        loadSettings();
     } else {
         loginError.textContent = 'Invalid password!';
         adminPassword.value = '';
@@ -62,6 +68,44 @@ async function loadStats() {
         document.getElementById('revoked-keys').textContent = data.revoked;
     } catch (error) {
         console.error('Error loading stats:', error);
+    }
+}
+
+async function loadSettings() {
+    try {
+        const response = await fetch('/api/admin/settings');
+        const data = await response.json();
+        if (data.flappy_key) {
+            flappyKeyInput.value = data.flappy_key;
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
+
+async function saveSettings() {
+    const flappyKey = flappyKeyInput.value.trim();
+    if (!flappyKey) {
+        alert('Please enter a key value');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ flappy_key: flappyKey })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Settings saved successfully!');
+        } else {
+            alert('Failed to save settings');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Error saving settings');
     }
 }
 
