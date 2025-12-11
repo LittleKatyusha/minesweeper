@@ -2,12 +2,12 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
 // Game constants
-const GRAVITY = 0.6;
-const JUMP_FORCE = -9;
-const SPEED = 4;
+const GRAVITY = 0.35;
+const JUMP_FORCE = -6;
+const SPEED = 3;
 const PIPE_SPACING = 300;
 const PIPE_GAP = 160;
-const TARGET_SCORE = 100; // Difficulty mainly from moving obstacles
+const TARGET_SCORE = 50; // Difficulty mainly from moving obstacles
 
 // Game state
 let gameLoop;
@@ -305,8 +305,8 @@ class Pipe {
         this.hue = (frames * 0.5) % 360;
         
         // Dynamic obstacle properties
-        this.moving = Math.random() > 0.6; // 40% chance of moving pipe
-        this.moveSpeed = (Math.random() * 2 + 1) * (Math.random() < 0.5 ? 1 : -1);
+        this.moving = Math.random() > 0.7; // 30% chance of moving pipe
+        this.moveSpeed = (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? 1 : -1); // Slower movement
         this.initialTop = this.topHeight;
     }
     
@@ -673,14 +673,49 @@ document.getElementById('restart-btn').addEventListener('click', (e) => {
     e.stopPropagation(); // Prevent canvas click event
     resetGame();
 });
-document.getElementById('copy-btn').addEventListener('click', () => {
+document.getElementById('copy-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     const keyText = document.getElementById('key-value').innerText;
-    navigator.clipboard.writeText(keyText).then(() => {
+    
+    // Try modern clipboard API first, fallback to execCommand
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(keyText).then(() => {
+            const btn = document.getElementById('copy-btn');
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = 'COPY', 2000);
+        }).catch(() => {
+            // Fallback for mobile/older browsers
+            fallbackCopy(keyText);
+        });
+    } else {
+        fallbackCopy(keyText);
+    }
+});
+
+// Fallback copy function for mobile browsers
+function fallbackCopy(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
         const btn = document.getElementById('copy-btn');
         btn.innerText = 'Copied!';
-        setTimeout(() => btn.innerText = 'Copy', 2000);
-    });
-});
+        setTimeout(() => btn.innerText = 'COPY', 2000);
+    } catch (err) {
+        console.error('Copy failed:', err);
+        alert('Copy failed. Please manually copy: ' + text);
+    }
+    
+    document.body.removeChild(textArea);
+}
 
 // Initialize
 canvas.width = 800;

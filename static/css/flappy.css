@@ -220,7 +220,8 @@ button:hover {
     }
 
     .score-display {
-        font-size: 32px;
+        font-size: 20px;
+        top: 10px;
     }
     
     .menu-screen {
