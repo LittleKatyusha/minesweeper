@@ -1,6 +1,3 @@
-# Database files
-*.db
-minesweeper.db
 
 # Python
 __pycache__/
