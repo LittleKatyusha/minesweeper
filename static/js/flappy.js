@@ -633,21 +633,21 @@ function loop() {
 
 // Input handling
 function handleInput(e) {
+    // Check if interaction is with UI elements
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+
     // Only handle space and arrow up for jumping, but allow other keys
-    if (e.type === 'keydown' && e.code !== 'Space' && e.code !== 'ArrowUp') return;
+    if (e.type === 'keydown' && e.code !== 'Space' && e.code !== 'ArrowUp' && e.code !== 'Enter') return;
     
     // Prevent scrolling for game keys and touch
     if ((e.type === 'keydown' && (e.code === 'Space' || e.code === 'ArrowUp')) || e.type === 'touchstart') {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
     }
     
     if (gameState === 'start' || gameState === 'gameover') {
         // Start game on click/touch/space/enter
         if (e.type === 'click' || e.type === 'touchstart' || e.code === 'Space' || e.code === 'Enter') {
-             // Avoid double-triggering reset if clicking a button
-             if (e.target.tagName !== 'BUTTON') {
-                resetGame();
-             }
+            resetGame();
         }
     } else if (gameState === 'playing') {
         player.jump();
@@ -655,11 +655,14 @@ function handleInput(e) {
 }
 
 window.addEventListener('keydown', handleInput);
-canvas.addEventListener('mousedown', (e) => {
-    if (gameState === 'playing') player.jump();
-    else if (gameState === 'start' || gameState === 'gameover') resetGame();
+// Add listeners to window instead of canvas for better mobile experience
+window.addEventListener('mousedown', (e) => {
+    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+        if (gameState === 'playing') player.jump();
+        else if (gameState === 'start' || gameState === 'gameover') resetGame();
+    }
 });
-canvas.addEventListener('touchstart', handleInput, {passive: false});
+window.addEventListener('touchstart', handleInput, {passive: false});
 
 // Buttons
 document.getElementById('start-btn').addEventListener('click', (e) => {

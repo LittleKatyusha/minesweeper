@@ -49,8 +49,9 @@ body {
 
 #game-container {
     position: relative;
-    width: 800px;
-    height: 600px;
+    width: min(800px, 95vw, calc(95vh * 4 / 3));
+    aspect-ratio: 4/3;
+    height: auto;
     box-shadow: 0 0 20px var(--neon-blue), 0 0 40px rgba(0, 243, 255, 0.5);
     border: 4px solid var(--neon-blue);
     border-radius: 10px;
@@ -191,7 +192,7 @@ button:hover {
     position: absolute;
     top: 20px;
     left: 20px;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.5);
     border: 2px solid var(--neon-blue);
     color: var(--neon-blue);
     padding: 10px 20px;
@@ -201,7 +202,29 @@ button:hover {
 }
 
 .back-btn:hover {
-    background: rgba(0, 243, 255, 0.1);
+    background: rgba(0, 243, 255, 0.3);
     box-shadow: 0 0 10px var(--neon-blue);
     transform: none;
+}
+
+@media (max-width: 600px) {
+    .back-btn {
+        top: 10px;
+        left: 10px;
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    h1 {
+        font-size: 30px;
+    }
+
+    .score-display {
+        font-size: 32px;
+    }
+    
+    .menu-screen {
+        padding: 20px;
+        width: 80%;
+    }
 }
