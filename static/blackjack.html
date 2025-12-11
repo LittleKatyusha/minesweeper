@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>🎰 Casino Blackjack - Win 10 in a Row!</title>
+    <link rel="stylesheet" href="/static/css/blackjack.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎰 CASINO BLACKJACK 🎰</h1>
+            <p class="subtitle">Win 10 consecutive games to claim your prize!</p>
+            <a href="/" class="back-link">← Back to Games</a>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-label">Win Streak</span>
+                <span id="winStreak" class="stat-value streak">0</span>
+                <span class="stat-label">/ 10</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Wins</span>
+                <span id="totalWins" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Losses</span>
+                <span id="totalLosses" class="stat-value">0</span>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+            <div class="progress-markers">
+                <span>0</span>
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <span>6</span>
+                <span>7</span>
+                <span>8</span>
+                <span>9</span>
+                <span>🏆</span>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="hand dealer-hand">
+                <h2>🎩 Dealer's Hand <span id="dealerScore" class="score"></span></h2>
+                <div id="dealerCards" class="cards"></div>
+            </div>
+
+            <div class="hand player-hand">
+                <h2>👤 Your Hand <span id="playerScore" class="score"></span></h2>
+                <div id="playerCards" class="cards"></div>
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <div class="controls">
+            <button id="hitBtn" class="btn btn-hit" disabled>🃏 Hit</button>
+            <button id="standBtn" class="btn btn-stand" disabled>✋ Stand</button>
+            <button id="dealBtn" class="btn btn-deal">🎴 Deal</button>
+            <button id="resetBtn" class="btn btn-reset">🔄 Reset</button>
+        </div>
+
+        <!-- Key Display -->
+        <div id="keyDisplay">
+            <h3>🎉 Your Prize Key!</h3>
+            <div id="keyValue"></div>
+            <button id="copyKeyBtn">📋 Copy Key</button>
+        </div>
+
+        <div id="victoryModal" class="modal">
+            <div class="modal-content">
+                <h2>🎰 JACKPOT! 🎰</h2>
+                <p>You won 10 games in a row!</p>
+                <p class="victory-text">🏆 Blackjack Master! 🏆</p>
+                <button id="playAgainBtn" class="btn btn-deal">🎴 Play Again</button>
+            </div>
+        </div>
+
+        <div class="rules">
+            <h3>♠ House Rules ♠</h3>
+            <ul>
+                <li>Get closer to 21 than the dealer without going over</li>
+                <li>Face cards (J, Q, K) are worth 10 points</li>
+                <li>Aces are worth 11 or 1 (auto-adjusted)</li>
+                <li>Dealer must hit on 16 and stand on 17</li>
+                <li>Win 10 consecutive games to claim your prize!</li>
+                <li>Any loss or push resets your streak to 0</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/static/js/blackjack.js"></script>
+</body>
+</html>

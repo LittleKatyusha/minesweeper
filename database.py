@@ -21,7 +21,7 @@ def init_db():
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        # Create game_sessions table
+        # Create game_sessions table (for Minesweeper)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS game_sessions (
                 session_id TEXT PRIMARY KEY,
@@ -30,6 +30,20 @@ def init_db():
                 flagged_json TEXT DEFAULT '[]',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed BOOLEAN DEFAULT 0
+            )
+        ''')
+        
+        # Create blackjack_sessions table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS blackjack_sessions (
+                session_id TEXT PRIMARY KEY,
+                deck_json TEXT NOT NULL,
+                player_hand_json TEXT DEFAULT '[]',
+                dealer_hand_json TEXT DEFAULT '[]',
+                win_streak INTEGER DEFAULT 0,
+                game_state TEXT DEFAULT 'waiting',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address TEXT
             )
         ''')
         
@@ -230,3 +244,141 @@ def get_key_stats():
             'active': active,
             'revoked': revoked
         }
+
+# ==================== BLACKJACK FUNCTIONS ====================
+
+def create_blackjack_session(session_id, deck, ip_address=None):
+    """
+    Create a new blackjack session.
+    
+    Args:
+        session_id: Unique identifier for the session
+        deck: List of card dictionaries
+        ip_address: Client IP address
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO blackjack_sessions (session_id, deck_json, player_hand_json, dealer_hand_json, win_streak, game_state, ip_address)
+            VALUES (?, ?, '[]', '[]', 0, 'waiting', ?)
+        ''', (session_id, json.dumps(deck), ip_address))
+        conn.commit()
+
+def get_blackjack_session(session_id):
+    """
+    Retrieve a blackjack session by its ID.
+    
+    Args:
+        session_id: The session ID to look up
+        
+    Returns:
+        Dictionary with session data or None if not found
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT session_id, deck_json, player_hand_json, dealer_hand_json, win_streak, game_state, created_at, ip_address
+            FROM blackjack_sessions
+            WHERE session_id = ?
+        ''', (session_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            return {
+                'session_id': row['session_id'],
+                'deck': json.loads(row['deck_json']),
+                'player_hand': json.loads(row['player_hand_json']),
+                'dealer_hand': json.loads(row['dealer_hand_json']),
+                'win_streak': row['win_streak'],
+                'game_state': row['game_state'],
+                'created_at': row['created_at'],
+                'ip_address': row['ip_address']
+            }
+        return None
+
+def update_blackjack_session(session_id, deck=None, player_hand=None, dealer_hand=None, win_streak=None, game_state=None):
+    """
+    Update a blackjack session.
+    
+    Args:
+        session_id: The session ID to update
+        deck: Updated deck (optional)
+        player_hand: Updated player hand (optional)
+        dealer_hand: Updated dealer hand (optional)
+        win_streak: Updated win streak (optional)
+        game_state: Updated game state (optional)
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Build dynamic update query
+        updates = []
+        params = []
+        
+        if deck is not None:
+            updates.append('deck_json = ?')
+            params.append(json.dumps(deck))
+        if player_hand is not None:
+            updates.append('player_hand_json = ?')
+            params.append(json.dumps(player_hand))
+        if dealer_hand is not None:
+            updates.append('dealer_hand_json = ?')
+            params.append(json.dumps(dealer_hand))
+        if win_streak is not None:
+            updates.append('win_streak = ?')
+            params.append(win_streak)
+        if game_state is not None:
+            updates.append('game_state = ?')
+            params.append(game_state)
+        
+        if updates:
+            params.append(session_id)
+            query = f"UPDATE blackjack_sessions SET {', '.join(updates)} WHERE session_id = ?"
+            cursor.execute(query, params)
+            conn.commit()
+
+def get_or_create_blackjack_session_by_ip(ip_address):
+    """
+    Get existing blackjack session for IP or return None.
+    
+    Args:
+        ip_address: Client IP address
+        
+    Returns:
+        Session data or None
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT session_id, deck_json, player_hand_json, dealer_hand_json, win_streak, game_state, created_at, ip_address
+            FROM blackjack_sessions
+            WHERE ip_address = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+        ''', (ip_address,))
+        row = cursor.fetchone()
+        
+        if row:
+            return {
+                'session_id': row['session_id'],
+                'deck': json.loads(row['deck_json']),
+                'player_hand': json.loads(row['player_hand_json']),
+                'dealer_hand': json.loads(row['dealer_hand_json']),
+                'win_streak': row['win_streak'],
+                'game_state': row['game_state'],
+                'created_at': row['created_at'],
+                'ip_address': row['ip_address']
+            }
+        return None
+
+def delete_blackjack_session(session_id):
+    """
+    Delete a blackjack session.
+    
+    Args:
+        session_id: The session ID to delete
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM blackjack_sessions WHERE session_id = ?', (session_id,))
+        conn.commit()

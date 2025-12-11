@@ -35,7 +35,6 @@ const keyDisplay = document.getElementById('key-display');
 const keyValue = document.getElementById('key-value');
 const newGameBtn = document.getElementById('new-game-btn');
 const copyBtn = document.getElementById('copy-btn');
-const proxyLink = document.getElementById('proxy-link');
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -654,11 +653,6 @@ function showKeyDisplay(key) {
     if (key && keyDisplay && keyValue) {
         keyValue.textContent = key;
         keyDisplay.style.display = 'block';
-        
-        // Update proxy link if it exists
-        if (proxyLink) {
-            proxyLink.href = `https://lmarena.ai/?key=${encodeURIComponent(key)}`;
-        }
     }
 }
 

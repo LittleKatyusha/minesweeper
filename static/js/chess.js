@@ -46,7 +46,6 @@ const newGameBtn = document.getElementById('new-game-btn');
 const keyDisplay = document.getElementById('key-display');
 const keyValue = document.getElementById('key-value');
 const copyBtn = document.getElementById('copy-btn');
-const proxyLink = document.getElementById('proxy-link');
 const promotionModal = document.getElementById('promotion-modal');
 const loadingOverlay = document.getElementById('loading-overlay');
 
@@ -389,6 +388,6 @@ function updateMoveHistory() { movesListElement.innerHTML = ''; for (let i = 0; 
 
 async function generateKey() { try { const r = await fetch('/api/chess-win', { method: 'POST' }); if (r.ok) { const d = await r.json(); if (d.key) showKeyDisplay(d.key); } else showKeyDisplay(genLocalKey()); } catch { showKeyDisplay(genLocalKey()); } }
 function genLocalKey() { const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let k = 'CHESS-'; for (let i = 0; i < 4; i++) { if (i > 0) k += '-'; for (let j = 0; j < 4; j++) k += c[Math.floor(Math.random() * c.length)]; } return k; }
-function showKeyDisplay(key) { keyValue.textContent = key; keyDisplay.style.display = 'block'; if (proxyLink) proxyLink.href = `https://lmarena.ai/?key=${encodeURIComponent(key)}`; }
+function showKeyDisplay(key) { keyValue.textContent = key; keyDisplay.style.display = 'block'; }
 function hideKeyDisplay() { keyDisplay.style.display = 'none'; keyValue.textContent = ''; }
 function copyKey() { if (!keyValue?.textContent) return; navigator.clipboard.writeText(keyValue.textContent).then(() => { copyBtn.textContent = '✅ Copied!'; setTimeout(() => copyBtn.textContent = '📋 Copy', 2000); }); }
